@@ -1,0 +1,27 @@
+[
+  {
+    "lineup": "arbiter-cross-lab",
+    "note": "first arbiter sharing no lab with any student",
+    "students": [
+      "claude-sonnet-5",
+      "gpt-5.1",
+      "deepseek-v4-pro"
+    ],
+    "arbiter": "gemini-3.5-flash",
+    "labs": 3,
+    "ok": true,
+    "council_size": 3,
+    "objections": 30,
+    "position_change_rate": 1.0,
+    "movers": 3,
+    "minority_items": 4,
+    "compliance": 0.909,
+    "worst_complier": "gpt-5.1",
+    "repairs": 1,
+    "cost": 0.2015,
+    "repair_cost": 0.0156,
+    "cost_multiple": 6.0,
+    "seconds": 356.5,
+    "failed_reason": null
+  }
+]

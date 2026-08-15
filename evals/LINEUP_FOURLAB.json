@@ -1,0 +1,28 @@
+[
+  {
+    "lineup": "four-lab",
+    "note": "a fourth distinct lab added to the best three-lab lineup",
+    "students": [
+      "claude-sonnet-5",
+      "gpt-5.1",
+      "deepseek-v4-pro",
+      "kimi-k2.6"
+    ],
+    "arbiter": "claude-opus-5",
+    "labs": 4,
+    "ok": true,
+    "council_size": 4,
+    "objections": 30,
+    "position_change_rate": 0.667,
+    "movers": 2,
+    "minority_items": 10,
+    "compliance": 1.0,
+    "worst_complier": "kimi-k2.6",
+    "repairs": 0,
+    "cost": 0.3514,
+    "repair_cost": 0,
+    "cost_multiple": 8.1,
+    "seconds": 1105.0,
+    "failed_reason": null
+  }
+]

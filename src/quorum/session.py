@@ -138,9 +138,17 @@ class SessionConfig:
     an untested nudge as standard has stopped measuring itself."""
 
     baseline_model: str | None = None
-    """Which seat the cost baseline is priced against. Defaults to the most
-    expensive seat — see `costs.pick_baseline_seat` for why, and why the
-    choice is recorded rather than assumed."""
+    """Name a *seated* model to price the baseline against. Defaults to the
+    most expensive seat — see `costs.pick_baseline_seat`. Naming a model that
+    holds no seat is an error, because it is almost always a typo."""
+
+    baseline_seat: Any = None
+    """A `Seat` to price the baseline against, seated or not.
+
+    Needed to compare lineups: `baseline_model` cannot express "one ruler for
+    every arm" when the arms differ, because the moment a lineup drops that
+    model the run either crashes or quietly switches yardsticks. Comparing
+    councils requires a baseline that is independent of who is in them."""
 
 
 @dataclass(frozen=True)
@@ -1125,7 +1133,8 @@ class Session:
         cost = sum(e.cost_est for e in events)
         present = [s for s in self.council.student_seats() if records[s].present]
         baseline = single_model_baseline(
-            self.council, events, override=self.config.baseline_model
+            self.council, events, override=self.config.baseline_model,
+            seat=self.config.baseline_seat,
         )
         spread = disagreement([records[s].initial for s in present])
 

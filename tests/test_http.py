@@ -249,3 +249,32 @@ class BaseUrlNormalisationTests(unittest.TestCase):
     def test_a_path_that_merely_ends_in_v1_something_is_untouched(self):
         provider = OpenAICompatibleProvider(api_key="k", base_url="https://host/api/v10")
         self.assertEqual(provider.base_url, "https://host/api/v10")
+
+
+class ChatPathTests(unittest.TestCase):
+    """"OpenAI-compatible" does not imply OpenAI's URL.
+
+    Google's compatibility layer serves `/v1beta/openai/chat/completions`.
+    With the path hardcoded, the adapter's claim to cover any compatible
+    vendor was really a claim to cover vendors that also copied the routing.
+    """
+
+    def test_the_default_path_is_unchanged(self):
+        self.assertEqual(
+            OpenAICompatibleProvider(api_key="k").chat_path, "/v1/chat/completions"
+        )
+
+    def test_a_vendor_specific_path_is_honoured(self):
+        provider = OpenAICompatibleProvider(
+            api_key="k",
+            base_url="https://generativelanguage.googleapis.com",
+            chat_path="/v1beta/openai/chat/completions",
+        )
+        self.assertEqual(provider.chat_path, "/v1beta/openai/chat/completions")
+
+    def test_slashes_are_normalised(self):
+        for given in ("v1/chat/completions", "/v1/chat/completions/"):
+            self.assertEqual(
+                OpenAICompatibleProvider(api_key="k", chat_path=given).chat_path,
+                "/v1/chat/completions",
+            )

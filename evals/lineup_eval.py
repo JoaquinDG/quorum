@@ -50,8 +50,9 @@ from quorum import (  # noqa: E402
 HERE = os.path.dirname(__file__)
 TRACES = os.path.join(HERE, "..", "traces", "lineups")
 
-BASELINE_MODEL = "claude-opus-5"
-"""One ruler for every arm. See `costs.cost_multiple` for why this matters."""
+BASELINE_SEAT = Seat("claude-opus-5", "anthropic", ModelCost(5.0, 25.0))
+"""One ruler for every arm, seated or not — a cross-lab-arbiter lineup has no
+Opus in it at all. See `costs.pick_baseline_seat`."""
 
 QUESTION = (
     "Our ingestion pipeline is three years old and increasingly slow. Should we rebuild "
@@ -67,6 +68,8 @@ P = {
     "haiku": ModelCost(1.0, 5.0),
     "gpt": ModelCost(2.5, 10.0),
     "deepseek": ModelCost(0.28, 1.10),
+    "moonshot": ModelCost(0.60, 2.50),
+    "gemini": ModelCost(0.30, 2.50),
 }
 
 SONNET = Seat("claude-sonnet-5", "anthropic", P["sonnet"])
@@ -74,6 +77,8 @@ GPT = Seat("gpt-5.1", "openai", P["gpt"])
 DEEPSEEK = Seat("deepseek-chat", "deepseek", P["deepseek"])
 DEEPSEEK_PRO = Seat("deepseek-v4-pro", "deepseek", P["deepseek"])
 FABLE = Seat("claude-fable-5", "anthropic", P["fable"])
+KIMI = Seat("kimi-k2.6", "moonshot", P["moonshot"])
+GEMINI = Seat("gemini-3.5-flash", "google", P["gemini"])
 
 LINEUPS: dict[str, tuple[str, Council]] = {
     # -- experiment 1: which arbiter? students held fixed ------------------
@@ -99,12 +104,41 @@ LINEUPS: dict[str, tuple[str, Council]] = {
         "weak seat replaced by a fourth Claude line — costs a lab",
         Council(students=(SONNET, GPT, FABLE), arbiter=Seat("claude-opus-5", "anthropic", P["opus"])),
     ),
+    # -- experiment 3: does a fourth LAB earn its 1.4x? --------------------
+    # The control is `seat-deepseek-pro`: identical students minus Kimi. Any
+    # difference is attributable to the fourth lab rather than to a better
+    # seat, which is the confound that made the earlier lineups hard to read.
+    "four-lab": (
+        "a fourth distinct lab added to the best three-lab lineup",
+        Council(students=(SONNET, GPT, DEEPSEEK_PRO, KIMI),
+                arbiter=Seat("claude-opus-5", "anthropic", P["opus"])),
+    ),
+    # -- experiment 4: an arbiter that shares no lab with any student ------
+    # `arbiter_shares_lab` has fired on every real session so far, because
+    # every council has had an Anthropic arbiter sitting above at least one
+    # Anthropic student. This is the first lineup where the synthesis is
+    # genuinely independent of every participant.
+    "arbiter-cross-lab": (
+        "first arbiter sharing no lab with any student",
+        Council(students=(SONNET, GPT, DEEPSEEK_PRO), arbiter=GEMINI),
+    ),
+    # -- experiment 5: every lab, one seat each ---------------------------
+    "five-lab": (
+        "one student per lab, the widest council these keys allow",
+        Council(students=(SONNET, GPT, DEEPSEEK_PRO, KIMI, GEMINI),
+                arbiter=Seat("claude-opus-5", "anthropic", P["opus"])),
+    ),
 }
 
 VENDORS = {
     "openai": ("https://api.openai.com", "OPENAI_API_KEY"),
     "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
+    "moonshot": ("https://api.moonshot.ai", "MOONSHOT_API_KEY"),
+    "google": ("https://generativelanguage.googleapis.com", "GEMINI_API_KEY"),
 }
+
+# Vendors whose OpenAI-compatible endpoint is not at /v1/chat/completions.
+CHAT_PATHS = {"google": "/v1beta/openai/chat/completions"}
 
 
 def build_pool(council: Council) -> ProviderPool:
@@ -114,7 +148,10 @@ def build_pool(council: Council) -> ProviderPool:
             providers.append(AnthropicProvider())
         else:
             base, key = VENDORS[name]
-            providers.append(OpenAICompatibleProvider(name=name, base_url=base, env_var=key))
+            providers.append(OpenAICompatibleProvider(
+                name=name, base_url=base, env_var=key,
+                chat_path=CHAT_PATHS.get(name, "/v1/chat/completions"),
+            ))
     return ProviderPool(providers)
 
 
@@ -131,7 +168,7 @@ def run_lineup(key: str, note: str, council: Council) -> dict:
         council,
         build_pool(council),
         trace_path=trace,
-        config=SessionConfig(baseline_model=BASELINE_MODEL),
+        config=SessionConfig(baseline_seat=BASELINE_SEAT),
     ).run(QUESTION, session_id=f"lineup-{key}")
     worst = result.worst_complier
     return {
@@ -168,10 +205,15 @@ def render(rows: list[dict]) -> str:
         "",
         f"Question held constant across all lineups. Prices are estimates.",
         "",
+        "**Sorted by absolute cost, which is the only column that compares.**",
+        "The `x baseline` column is within-session only: the baseline is measured",
+        "from each session's own round 1, so a verbose council inflates its own",
+        "yardstick. See `costs.cost_multiple`.",
+        "",
         "| lineup | labs | objections | moved | minority | compliance | repairs | cost | x baseline |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for r in rows:
+    for r in sorted(rows, key=lambda r: r.get("cost", 0)):
         if not r.get("ok"):
             out.append(f"| `{r['lineup']}` | {r['labs']} | — | — | — | — | — | "
                        f"${r.get('cost', 0):.4f} | FAILED |")
@@ -216,7 +258,14 @@ def main(argv: list[str] | None = None) -> int:
         print("\n  re-run with --run to execute.")
         return 0
 
-    for var in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"):
+    needed = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"}
+    for key, (_, council) in chosen.items():
+        labs = {s.provider for s in council.seats()}
+        if "moonshot" in labs:
+            needed.add("MOONSHOT_API_KEY")
+        if "google" in labs:
+            needed.add("GEMINI_API_KEY")
+    for var in sorted(needed):
         if not os.environ.get(var):
             print(f"{var} is not set", file=sys.stderr)
             return 2

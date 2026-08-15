@@ -261,6 +261,7 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
         name: str | None = None,
         env_var: str = "OPENAI_API_KEY",
         max_tokens_param: str | None = None,
+        chat_path: str = "/v1/chat/completions",
         **transport,
     ) -> None:
         super().__init__(**transport)
@@ -271,6 +272,13 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
         # a 404 that named neither the model nor the mistake. Accept both.
         self.base_url = base_url.rstrip("/").removesuffix("/v1")
         self.env_var = env_var
+        # Not every OpenAI-compatible vendor serves the endpoint at
+        # `/v1/chat/completions`. Google's compatibility layer, for one, lives
+        # under `/v1beta/openai/chat/completions`, and hardcoding the path
+        # would have made "OpenAI-compatible" mean "OpenAI-shaped body at
+        # OpenAI's URL" — which is a much smaller claim than the one this
+        # adapter makes.
+        self.chat_path = "/" + chat_path.strip("/")
         if name:
             self.name = name
         # OpenAI's newer models reject `max_tokens`; most compatible vendors
@@ -292,7 +300,7 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
             }
         ).encode()
         data = self._request(
-            f"{self.base_url}/v1/chat/completions",
+            f"{self.base_url}{self.chat_path}",
             body,
             {
                 "content-type": "application/json",

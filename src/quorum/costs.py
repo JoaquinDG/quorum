@@ -48,14 +48,23 @@ class Baseline:
         }
 
 
-def pick_baseline_seat(council: Council, override: str | None = None):
+def pick_baseline_seat(council: Council, override: str | None = None, seat=None):
     """The seat the baseline is priced against.
 
     Defaults to the most expensive seat, on the reasoning that if you were
     going to ask one model a hard question you would ask your best one, and
     that comparing a council against a *cheap* single model would flatter the
     council by construction.
+
+    `seat` supplies a yardstick that need not be *in* the council, which is
+    required to compare lineups honestly. Naming a seated model by string
+    cannot express "price every arm against one model" when the arms differ:
+    the moment a lineup drops that model, the comparison either crashes or
+    silently reverts to a different ruler. Pinning a `Seat` decouples "what
+    one model would have cost" from "who happened to be in this room".
     """
+    if seat is not None:
+        return seat
     if override:
         for seat in council.seats():
             if seat.model_id == override:
@@ -72,7 +81,7 @@ def pick_baseline_seat(council: Council, override: str | None = None):
 
 def single_model_baseline(
     council: Council, events: list[TraceEvent] | tuple[TraceEvent, ...], *,
-    override: str | None = None,
+    override: str | None = None, seat=None,
 ) -> Baseline:
     """Cost of answering the question once, from the session's own round 1.
 
@@ -82,7 +91,7 @@ def single_model_baseline(
     using the largest would price the baseline against the most verbose
     participant and quietly shrink the multiple.
     """
-    seat = pick_baseline_seat(council, override)
+    seat = pick_baseline_seat(council, override, seat)
     round_one = [
         e
         for e in events
@@ -114,8 +123,15 @@ def cost_multiple(session_cost: float, baseline: Baseline) -> float | None:
     session actually got *cheaper* in absolute terms. The multiple only moved
     because the most expensive seat — and therefore the denominator — had.
 
-    To compare lineups, pin `SessionConfig.baseline_model` to one model across
-    every arm, or compare `cost_est` directly.
+    Pinning `SessionConfig.baseline_seat` fixes the *price* half of the
+    problem but not the *token* half: the baseline's token counts are measured
+    from each session's own round 1, so a council with a verbose student
+    inflates its own yardstick and reports a flatteringly small multiple. Two
+    lineups measured this directly — one reported 6.0x and another 27.4x while
+    their absolute costs differed by only 48%.
+
+    **Compare `cost_est`. The multiple answers "was this session worth it?",
+    not "which lineup is cheaper?"**
     """
     if not baseline.priced or baseline.cost_est <= 0:
         return None
