@@ -44,15 +44,18 @@ from quorum import (  # noqa: E402
 
 HERE = os.path.dirname(__file__)
 
-# Prices are per million tokens and are YOURS to keep current. Check the
-# vendor's page before quoting any cost figure these produce.
+# Prices are per million tokens and are YOURS to keep current — these are
+# estimates, and at least one of them has already been caught understating a
+# real bill by ~2.6x. Check every vendor's page before quoting a cost figure
+# this produces, and remember which direction a wrong price errs in: too low
+# looks like good news.
 PRICES = {
     "opus": ModelCost(5.0, 25.0),
     "sonnet": ModelCost(3.0, 15.0),
     "haiku": ModelCost(1.0, 5.0),
     "fable": ModelCost(3.0, 15.0),
     "openai": ModelCost(2.5, 10.0),
-    "deepseek": ModelCost(0.28, 0.42),
+    "deepseek": ModelCost(0.28, 1.10),
 }
 
 

@@ -467,6 +467,19 @@ Every student failure belonged to one seat. `SessionResult.compliance_by_model` 
 
 There is a real tension here worth naming rather than resolving: the seat with the most distinct priors is also the seat that struggles most with the schema. The protocol's value and its cost point at the same model.
 
+**And the cost is not where you would guess.** Across a three-lab session:
+
+| seat | share of session cost |
+|---|---|
+| `claude-opus-5` (arbiter) | **69%** |
+| `claude-sonnet-5` | 23% |
+| `gpt-5.1` | 8% |
+| `deepseek-chat` | 0.6% |
+
+The arbiter is more than two thirds of every bill, because it reads the whole transcript while everyone else reads one prompt. That reframes the spec's open question about arbiter tier — "strongest or neutral mid-tier?" — as a cost question with a measured answer attached, and it is the single biggest lever on the ≤8× guardrail this project keeps missing.
+
+It also caught a pricing error the honest way. The DeepSeek seat was configured at `$0.42`/M output and the real bill implied closer to `$1.10` — **understating by ~2.6×, in the reassuring direction**. The prices in this repo are estimates and are labelled as such; the lesson is that a wrong price errs toward good news, which is exactly why `unpriced_seats` exists and why cost figures here are always shown next to the model that produced them.
+
 ### One claim of mine got weaker
 
 I attributed the three Claude models' unanimity to single-lab correlated priors. A **GPT-5.1** sheet then parsed clean on the first try — 5 claims, no compliance warnings — and reached *the same conclusion*: refactor in place.
