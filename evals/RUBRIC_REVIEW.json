@@ -1,0 +1,971 @@
+{
+  "pipeline_rebuild": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both a single model and a synthesized output can state a clear recommendation without either having an inherent structural advantage.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "The critique phase in a multi-model pipeline explicitly attacks underlying assumptions, automatically handing the synthesizer a list of dependencies that a single-pass model will likely omit.",
+        "rewrite": "Identifies the core business constraints that must be managed for the recommendation to succeed."
+      },
+      {
+        "key": "irreversibility",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Because the irreversible nature of the change is explicitly stated in the prompt, a single-pass model is just as likely to engage with it.",
+        "rewrite": null
+      },
+      {
+        "key": "sequencing",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The lack of roadmap slack is explicitly provided in the text, meaning any capable model can immediately address the practical next steps.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "An explicit critique phase mechanically generates opposing arguments by design, effectively spoon-feeding this exact requirement to the final synthesizer.",
+        "rewrite": "Explains how to mitigate the primary risk associated with the chosen approach."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether an LLM's rhetorical tone perfectly matches a human judge's subjective assessment of its reasoning strength is impossible to standardize.",
+        "rewrite": "Explicitly distinguishes between known constraints from the prompt and assumed variables."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "This rubric secretly guarantees a multi-model victory by rewarding the exact artifacts of a critique phase (surfaced conditions, counter-arguments) under the guise of baseline quality. Worse, 'calibrated' is a purely subjective loophole that allows a judge to arbitrarily penalize the natural assertiveness of single-model outputs to force a desired outcome.",
+    "_tokens": 589,
+    "_cost": 0.0066475
+  },
+  "usage_pricing": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model can easily recommend a specific action, whereas synthesis models often water down conclusions with hedging, meaning this does not unfairly favor deliberation.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Multi-agent critiques inherently expose and compile dependencies by attacking each other's logic, giving synthesis a massive structural advantage over a single unified answer.",
+        "rewrite": "Evaluates the business risks if its underlying assumptions prove false."
+      },
+      {
+        "key": "segments",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly serves up the two segments, so any competent single model will address both without needing a debate process to surface them.",
+        "rewrite": null
+      },
+      {
+        "key": "reversibility",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Like the customer segments, reversibility is explicitly fed to the model in the prompt, making it a baseline reading comprehension requirement rather than a debate byproduct.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model process has a dedicated critique phase that mechanically produces counter-arguments, meaning this criterion explicitly grades the pipeline's structure rather than pure answer quality.",
+        "rewrite": "Explains how the recommendation mitigates the primary disadvantage of the chosen strategy."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Assessing 'strength of reasoning' against 'stated confidence' is a subjective loophole that lets a judge arbitrarily penalize any answer they personally disagree with under the guise of poor calibration.",
+        "rewrite": "Avoids declarative certainty when predicting the future behavior of customer accounts."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric is heavily rigged to reward the structural artifacts of an adversarial multi-agent pipeline, like surfacing conditions and counter-arguments, rather than evaluating pure insight. Worse, it relies on fundamentally unmeasurable criteria like 'calibration' that give judges a blank check to enforce their own biases.",
+    "_tokens": 601,
+    "_cost": 0.0067525
+  },
+  "seniors_vs_juniors": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Recommending a single actionable path tests fundamental decision-making quality that is equally accessible to a single well-prompted model and a coherent multi-model synthesis.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "The critique phase of the deliberation pipeline mechanically spits out alternative scenarios and dependencies, giving the synthesis a free pass on this criterion regardless of true insight.",
+        "rewrite": "Justifies why the recommendation holds despite the most likely adverse condition."
+      },
+      {
+        "key": "runway",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Any baseline model can address the prompt's explicit 18-month constraint and explicitly factor it into its reasoning.",
+        "rewrite": null
+      },
+      {
+        "key": "unknowns",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Addressing the explicit prompt constraint about roadmap unknowns is a baseline reading comprehension task that requires no special multi-agent architecture.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A pipeline explicitly designed to have models critique each other will automatically generate opposing views, gaming this metric by design.",
+        "rewrite": "Successfully dismantles the strongest counter-argument to its chosen path."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "A judge cannot consistently quantify the abstract 'strength' of reasoning to compare it against a highly subjective interpretation of the text's 'confidence' level.",
+        "rewrite": "Avoids stating assumptions or uncertain projections as absolute facts."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "conditions",
+    "comment": "The rubric covertly rewards the structural byproducts of a critique pipeline\u2014such as surfacing dependencies and caveats\u2014rather than the actual strategic quality of the final decision. Furthermore, subjective metrics like calibration give judges a blank check to unfairly reward the naturally hedged tone typical of synthesized outputs.",
+    "_tokens": 575,
+    "_cost": 0.006495
+  },
+  "deprecate_v1": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model can readily provide a specific recommendation, while a multi-model synthesis might actually dilute specificity into a generic compromise, making this a balanced check on quality.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Synthesizing conflicting critiques inherently generates conditional logic, allowing a deliberative system to automatically score higher here than a confident, optimal single-model decision.",
+        "rewrite": "Provides a sound rationale for the recommendation based on the constraints provided in the prompt."
+      },
+      {
+        "key": "customer_risk",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether a text 'takes an issue seriously' is an unmeasurable sentiment check that guarantees judges will reward artificially bloated, empathetic-sounding caveats over concise operational planning.",
+        "rewrite": "Includes a concrete mitigation step for the 6% revenue dependency and associated compliance exposure."
+      },
+      {
+        "key": "timeline",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Stating a specific date or trigger is a straightforward, binary measure of an actionable plan that any competent model can output equally well.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model pipeline explicitly programmed to critique its own claims will spit out counter-considerations by default, making this a test of the pipeline architecture rather than the final answer's merit.",
+        "rewrite": "Addresses the primary operational tradeoffs of the chosen path."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "Judging if 'confidence matches strength' is a notoriously subjective blank check that allows graders to heavily reward the naturally hedged, non-committal tone of a synthesizer.",
+        "rewrite": "Accurately represents the known facts without adding unsupported guarantees."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "customer_risk",
+    "comment": "This rubric is inherently rigged to reward the structural artifacts of a debate-and-synthesis process, such as hedged tones and conditional logic, rather than actual operational value. The inclusion of purely subjective, unmeasurable sentiment criteria acts as a backdoor for judges to systematically favor bloated, over-caveated answers.",
+    "_tokens": 639,
+    "_cost": 0.00714
+  },
+  "single_tenant": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model is entirely capable of committing to a direct, actionable recommendation without needing peer critique to arrive at a decision.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-agent critique process structurally forces underlying assumptions to the surface, essentially hardcoding the synthesizer to list dependencies.",
+        "rewrite": "Evaluates the primary business constraints that justify the final recommendation."
+      },
+      {
+        "key": "precedent",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Assessing the long-term impact on sales strategy and future prospects is standard business reasoning that any competent single model can execute.",
+        "rewrite": null
+      },
+      {
+        "key": "ongoing_cost",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Identifying the financial difference between one-off setup and permanent operational maintenance is basic domain knowledge equally accessible to a single model.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model pipeline that includes a dedicated critique phase is explicitly designed to generate opposing considerations, giving it an artificial checklist advantage.",
+        "rewrite": "Integrates both the benefits and the business risks into a balanced final recommendation."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "It is virtually impossible for a judge to consistently quantify absolute 'strength of reasoning' against 'stated confidence', leading judges to simply reward the natural waffling of synthesized outputs.",
+        "rewrite": "Avoids stating forward-looking projections or assumptions as absolute facts."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric contains structurally biased criteria that reward the natural metadata of a multi-model critique process, such as surfaced caveats and counter-arguments, rather than actual answer quality. Furthermore, the subjective nature of the 'calibrated' criterion acts as a backdoor for judges to project bias and penalize the assertiveness typical of single-model responses.",
+    "_tokens": 588,
+    "_cost": 0.00661875
+  },
+  "build_vs_buy_auth": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model can readily recommend a clear action, and a multi-model synthesis has no inherent advantage in being decisive.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "The multi-model critique phase automatically surfaces structural assumptions and dependencies, giving it a mechanical advantage over a single model that straightforwardly answers the prompt.",
+        "rewrite": "Provides a logical rationale that holds up under the specific facts provided in the prompt."
+      },
+      {
+        "key": "audit_constraint",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Treating a five-month deadline as a hard constraint is a basic logical requirement that any competent single model will handle easily.",
+        "rewrite": null
+      },
+      {
+        "key": "lock_in",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A high-quality single model can deduce the strategic risk of a 4x price hike just as effectively as a deliberative process without needing multiple brainstorming passes.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "Requiring an explicit argument against the chosen recommendation directly rewards the adversarial outputs naturally generated by a multi-model critique pipeline.",
+        "rewrite": "Accounts for major implementation risks or downsides associated with the recommended action."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Because 'stated confidence' and 'strength of reasoning' are highly subjective in free text, this acts as a blank check for graders to arbitrarily reward the hedged tone typical of synthesized text.",
+        "rewrite": "Acknowledges uncertainty only when the provided facts are genuinely insufficient to make a firm choice."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric is covertly stacked to reward the mechanical artifacts of a critique-and-synthesis pipeline, such as explicitly listed dependencies and counter-arguments. Furthermore, the subjective 'calibrated' criterion allows human evaluators to pass off a preference for synthesized hedging as an objective measure of quality.",
+    "_tokens": 606,
+    "_cost": 0.00681375
+  },
+  "open_source_core": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both single models and syntheses can offer concrete recommendations, making this a fair test of baseline utility.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A critique-and-revise loop mechanically generates edge cases and dependencies, giving the synthesis model a free pass on this metric compared to a direct answer.",
+        "rewrite": "Identifies the single core assumption that would invalidate the recommendation if proven false."
+      },
+      {
+        "key": "moat",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Addressing the specific competitor threat named in the prompt is a baseline requirement for any competent answer, regardless of the generation method.",
+        "rewrite": null
+      },
+      {
+        "key": "scope",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Synthesizing multiple independent models naturally aggregates a spectrum of partial options, artificially rewarding the pipeline's brainstorming mechanics over a single cohesive thesis.",
+        "rewrite": "Selects an appropriate scope for the action (e.g., specific components or licenses) rather than defaulting to an unthinking all-or-nothing approach."
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The critique phase literally feeds counterarguments to the synthesizer, making this an automatic structural win for the multi-model pipeline.",
+        "rewrite": null
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "This relies on entirely subjective assessments of 'confidence' versus 'reasoning strength,' allowing a judge to arbitrarily favor the hedged tone typical of synthesized outputs.",
+        "rewrite": "Avoids making definitive guarantees about future market outcomes like hiring volume or competitor actions."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric covertly redefines 'good business judgment' as 'exhibiting the mechanical artifacts of a critique-synthesis loop', such as aggregating alternative scopes and listing dependencies. Furthermore, subjective criteria like 'calibrated' provide a massive loophole for judges to rubber-stamp the hedged, verbose outputs typical of multi-model deliberation.",
+    "_tokens": 614,
+    "_cost": 0.00689
+  },
+  "remote_office": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Any competent single model can generate a concrete action plan, and a synthesis model can easily be instructed to select one definitive path without hedging.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Critique models naturally surface edge cases and challenge assumptions, practically forcing the synthesizer to explicitly list dependencies to resolve the debate.",
+        "rewrite": "Logically connects the recommended action to the specific business context provided."
+      },
+      {
+        "key": "two_tier",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly asks what opening an office does to everyone else, making it trivial for any standard model to directly address the cultural split.",
+        "rewrite": null
+      },
+      {
+        "key": "evidence",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Multi-model critique inherently generates pedantic objections about sample sizes, guaranteeing the synthesizer includes this exact mathematical disclaimer rather than just answering the dilemma.",
+        "rewrite": "Appropriately weighs the hesitation of the three hires against the established success of the remote setup."
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The multi-model process structurally generates opposing views during the critique phase, effectively handing the synthesizer counter-arguments on a silver platter.",
+        "rewrite": "Provides concrete mitigations for the primary risks of the chosen recommendation."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether a subjective feeling of confidence mathematically 'matches' an abstract assessment of 'reasoning strength' is impossible for a judge to score consistently.",
+        "rewrite": "Acknowledges the inherent uncertainty in predicting the company-wide reaction."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "evidence",
+    "comment": "The rubric acts as a honeypot for the stylistic quirks of multi-model synthesis, systematically rewarding meta-commentary, pedantry, and exhaustive hedging over raw answer quality. It effectively scores the mechanics of the deliberation process rather than the actual strategic value of the business advice.",
+    "_tokens": 605,
+    "_cost": 0.0068025
+  },
+  "enterprise_pivot": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model is equally or more capable of outputting a decisive, actionable recommendation, whereas multi-model synthesis often waters down conclusions into vague compromises.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A critique-and-synthesis process inherently surfaces conflicting variables and aggregates them as dependencies, automatically satisfying this criterion without necessarily improving the underlying strategy.",
+        "rewrite": "The recommendation relies on realistic, explicitly stated assumptions about the business rather than unsubstantiated guesses."
+      },
+      {
+        "key": "diagnosis",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Diagnosing a problem before solving it is a standard instruction-following behavior that a single model can execute perfectly well in a direct answer.",
+        "rewrite": null
+      },
+      {
+        "key": "org_cost",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Because the prompt explicitly mentions 'rebuilding the sales team', any competent single model will automatically factor this organizational cost into its response.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-agent process built around generating critiques will automatically produce strong counter-arguments for the synthesizer to include, requiring no extra strategic insight.",
+        "rewrite": "The proposed strategy includes specific mitigations for its most likely point of failure."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "There are no objective metrics for 'stated confidence' or 'strength of reasoning', guaranteeing inconsistent application where judges will likely just reward the heavily hedged tone typical of synthesized outputs.",
+        "rewrite": "Avoids making definitive guarantees about uncertain outcomes like future revenue or exact sales cycle lengths."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "This rubric evaluates the stylistic artifacts of a committee debate\u2014hedging, listing conditions, and surfacing counter-arguments\u2014rather than the actual business merit of the strategy. A brilliant, decisive single-model answer would likely lose to a mediocre but highly caveated multi-model synthesis.",
+    "_tokens": 604,
+    "_cost": 0.0067875
+  },
+  "incident_disclosure": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both a single model and a synthesized process are equally capable of outputting a concrete, actionable directive without relying on debate artifacts.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "The critique phase of a multi-model process naturally isolates assumptions to attack them, meaning a synthesized output is structurally guaranteed to explicitly list dependencies, whereas a single good model might just provide a confident answer.",
+        "rewrite": "The recommendation remains robust even if key uncertainties in the scenario shift."
+      },
+      {
+        "key": "beyond_legal",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt overtly highlights the tension between legal requirements and other factors, making this a baseline reading comprehension and alignment task that a single model can easily pass.",
+        "rewrite": null
+      },
+      {
+        "key": "no_evidence",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Distinguishing between 'no evidence of access' and 'no access' is a fundamental semantic nuance that a capable single model can catch on the first pass.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model pipeline literally generates counter-arguments during its critique step, spoon-feeding the synthesizer exactly what this structural requirement demands.",
+        "rewrite": "The proposed action minimizes vulnerabilities to the most obvious strategic risks."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Judging the exact alignment between a fuzzy rhetorical tone ('stated confidence') and a subjective, unquantifiable assessment of argument quality ('strength of reasoning') is impossible to standardize.",
+        "rewrite": "Avoids presenting assumptions, guesses, or unresolved risks as undeniable facts."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "conditions",
+    "comment": "The rubric covertly grades the structural artifacts of the writing process rather than the objective quality of the final decision. By treating committee-style hedging and explicit dependency-listing as proxies for accuracy, it penalizes single models for concise, confident correctness.",
+    "_tokens": 598,
+    "_cost": 0.00672625
+  },
+  "free_tier": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both a single model and a synthesized output can equally provide a concrete, actionable recommendation without any structural advantage.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A critique-and-revise process naturally surfaces underlying dependencies through disagreement, whereas a single model typically asserts its reasoning directly without listing prerequisites.",
+        "rewrite": "Clearly links the final recommendation back to the provided data points."
+      },
+      {
+        "key": "attribution",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model debate is explicitly designed to interrogate premises and find missing variables, whereas a single-pass model generally takes the provided metrics at face value.",
+        "rewrite": "Accounts for the possibility of indirect value (e.g., brand awareness) not captured by the 4% conversion rate."
+      },
+      {
+        "key": "middle_option",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly offers restriction as an option, ensuring any baseline single-model response will naturally evaluate it.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The synthesis model is literally fed the counter-arguments generated during the critique phase, structurally guaranteeing their inclusion.",
+        "rewrite": null
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Gauging whether subjective textual 'confidence' mathematically matches the equally subjective 'strength of reasoning' is impossible for any judge to apply consistently.",
+        "rewrite": "Avoids absolute guarantees regarding the business outcome of the recommendation."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric covertly rewards the structural artifacts of a debate process\u2014like interrogating premises and listing dependencies\u2014rather than purely assessing answer quality. Furthermore, the unmeasurable 'calibrated' criterion introduces massive subjectivity, giving the judge a blank check to penalize standard single-model assertiveness.",
+    "_tokens": 583,
+    "_cost": 0.0065725
+  },
+  "monorepo_split": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single capable model can recommend a specific course of action just as well as a multi-model pipeline, making this a genuinely equitable measure of answer quality.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "By rewarding answers that list dependencies, the rubric hands free points to multi-model pipelines that naturally generate pedantic edge-cases during their critique phase.",
+        "rewrite": "Identifies only the critical dependencies that would cause the recommendation to fail if unmet."
+      },
+      {
+        "key": "root_cause",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Diagnosing whether the bottleneck is technical or organizational is a fundamental analytical task that does not inherently benefit from a multi-model debate structure.",
+        "rewrite": null
+      },
+      {
+        "key": "cheapest_first",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Demanding that an answer explicitly 'considers' alternatives rewards the inherently verbose, debate-style text of a multi-model pipeline rather than evaluating the actual quality of the final recommendation.",
+        "rewrite": "Recommends the most cost-effective intervention that successfully resolves the bottleneck."
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model pipeline explicitly generates counterarguments during its critique step, whereas a single model typically argues straightforwardly for its conclusion.",
+        "rewrite": "Integrates structural mitigations for the most severe trade-off of its proposed solution."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "This criterion is a subjective blank check that allows judges to arbitrarily manipulate scores based on their own vague vibe-check of the model's 'confidence'.",
+        "rewrite": "Uses tentative language when making claims about outcomes that depend on unknown team dynamics or infrastructure details."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "This rubric is rigged to reward the verbose, hedging, and debate-heavy artifacts of multi-model deliberation rather than evaluating raw answer utility. Furthermore, highly subjective criteria like 'calibrated' allow human judges to weaponize ambiguity and engineer whatever final outcome they prefer.",
+    "_tokens": 631,
+    "_cost": 0.00705625
+  },
+  "acquire_competitor": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both single models and synthesis models can explicitly state a clear course of action, though synthesizers may occasionally struggle more with decisiveness.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model process featuring explicit critique will structurally generate a laundry list of dependencies and contingencies that a single model won't naturally enumerate to the same verbose degree.",
+        "rewrite": "The recommendation relies only on realistic, logically sound assumptions rather than exhaustive contingency mapping."
+      },
+      {
+        "key": "what_are_we_buying",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Identifying the core strategic asset is a standard business framework step that a competent single model is just as likely to perform.",
+        "rewrite": null
+      },
+      {
+        "key": "integration",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly flags the 50% tech overlap in the question, making it equally obvious for a single model to address the integration risk.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The deliberative process literally includes a dedicated critique phase, meaning the synthesizer is spoon-fed counter-arguments to include, granting it a massive structural advantage.",
+        "rewrite": "Evaluates the inherent trade-offs of the decision rather than purely counting the presence of named counter-arguments."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether stated confidence matches 'strength of reasoning' is entirely subjective and provides a loophole for judges to blindly reward the hedged, uncertain tone typical of synthesized text.",
+        "rewrite": "Avoids stating uncertain future outcomes, such as integration success or market reactions, as guaranteed facts."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "This rubric is engineered to reward the natural exhaust of a debate process\u2014like listed dependencies, explicit counter-arguments, and hedged language\u2014rather than the actual business acuity of the final decision. It guarantees the multi-model synthesizer will win by grading on the presence of structural debate artifacts rather than raw answer quality.",
+    "_tokens": 621,
+    "_cost": 0.00695125
+  },
+  "founder_role": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both single models and synthesized outputs are equally capable of providing a clear, actionable recommendation, as this evaluates basic answer quality rather than structural style.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model process with an explicit critique phase mechanically surfaces dependencies and edge cases, guaranteeing the synthesizer hits this metric simply by summarizing its internal logs.",
+        "rewrite": "The proposed solution is structurally robust and accounts for potential constraints rather than assuming a frictionless environment."
+      },
+      {
+        "key": "context_transfer",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "This evaluates whether the model actually solved the literal problem defined in the prompt, an objective measure of quality achievable by any competent model.",
+        "rewrite": null
+      },
+      {
+        "key": "pace",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Because the prompt explicitly asks 'how fast', explicitly addressing the timeline and its associated risks is a baseline requirement for a complete answer, not a performative artifact of deliberation.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "Demanding the text explicitly name a counter-argument heavily privileges a process that literally includes a critique step, penalizing a single model that argues efficiently for its optimal path.",
+        "rewrite": "The recommendation logically withstands obvious business and architectural counter-arguments."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether a text's stylistic 'stated confidence' objectively matches the hidden variable of 'reasoning strength' gives human judges a blank check to enforce their own tonal biases.",
+        "rewrite": "Supports all definitive claims with explicit logical justification or specific evidence."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric systematically confuses the performative artifacts of deliberation\u2014such as hedging, surfacing counter-arguments, and voicing dependencies\u2014with objective answer quality. To be impartial, the criteria must measure the structural resilience of the proposed solution rather than demanding the text narrate its own weaknesses.",
+    "_tokens": 607,
+    "_cost": 0.00681125
+  },
+  "eu_region": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both single models and synthesized outputs can make actionable recommendations, though ensembles often struggle more to avoid hedging.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model critique process structurally guarantees the generation of 'what-ifs', allowing the synthesizer to lazily check this box by compiling a laundry list of dependencies.",
+        "rewrite": "Identifies the single most critical business unknown that would change the recommendation, rather than listing multiple dependencies."
+      },
+      {
+        "key": "promise_risk",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "This evaluates substantive domain-specific business logic that a capable single model is just as likely to spot as an ensemble.",
+        "rewrite": null
+      },
+      {
+        "key": "demand_signal",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "This assesses basic business reasoning tied directly to the prompt's premises, equally reachable by any competent model.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The multi-model pipeline explicitly features a critique phase, giving it a massive structural advantage in reliably generating opposing considerations.",
+        "rewrite": "Defends the chosen recommendation by directly refuting the strongest alternative, rather than just naming an opposing consideration."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Measuring whether stated confidence matches the 'strength of reasoning' requires completely subjective evaluation of two ambiguous variables, giving the judge a blank check to penalize assertiveness.",
+        "rewrite": "Uses conditional language (e.g., 'if', 'assuming') only when addressing information explicitly missing from the prompt."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "conditions",
+    "comment": "The rubric covertly subsidizes multi-model pipelines by treating caveat-heavy, exhaustive lists of conditions as inherently superior business judgment. Furthermore, unmeasurable criteria like 'calibrated' act as a wildcard to punish the natural directness of single-model outputs under the guise of scoring reasoning.",
+    "_tokens": 598,
+    "_cost": 0.0067275
+  },
+  "ai_feature_bet": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Any capable model can output a specific recommendation, and synthesis models might actually struggle more to avoid wishy-washy compromises.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model debate inherently explores alternative scenarios and dependencies to resolve disagreements, handing the synthesizer an automatic checklist of conditions.",
+        "rewrite": "Identifies the core business assumptions required for the recommendation to succeed."
+      },
+      {
+        "key": "competitive_pressure",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly separates competitor actions from customer demand, so any attentive single model will address this distinction without needing a debate.",
+        "rewrite": null
+      },
+      {
+        "key": "unit_economics",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly states the assistant will 'cost real money per user,' which is a direct cue any single model can easily incorporate.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The critique phase automatically generates strong opposing views, allowing the synthesizer to simply report existing counter-arguments rather than generating them from scratch.",
+        "rewrite": "Addresses the major risks or downsides of the recommended path."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating whether abstract 'confidence' matches subjective 'strength of reasoning' gives graders a blank check to arbitrarily penalize the definitive tone typical of single models.",
+        "rewrite": "Limits definitive statements to claims directly supported by the provided business context."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric covertly rewards the structural artifacts of a multi-model debate, such as condition-listing and explicit counter-arguments, rather than pure answer quality. Furthermore, the entirely subjective 'calibrated' criterion gives hostile graders free rein to reverse-engineer their preferred outcome based on tone.",
+    "_tokens": 579,
+    "_cost": 0.00654375
+  },
+  "support_outsource": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single model is just as capable\u2014if not more so\u2014of committing to a single, actionable plan without the hedging that often results from synthesized consensus.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A critique-and-revise pipeline systematically surfaces edge cases and dependencies, essentially spoon-feeding them to the synthesis model to list explicitly.",
+        "rewrite": "The recommendation remains viable under realistic business constraints, regardless of whether it explicitly lists those constraints."
+      },
+      {
+        "key": "cause_vs_symptom",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "This evaluates basic domain comprehension of the underlying business problem, which is accessible to any competent single model.",
+        "rewrite": null
+      },
+      {
+        "key": "feedback_loss",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Recognizing the classic tradeoff between engineering focus and customer empathy is standard knowledge that does not require a debate process to uncover.",
+        "rewrite": null
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "Because the multi-model process contains a dedicated critique step, strong counter-arguments are automatically generated and handed to the synthesizer by default.",
+        "rewrite": "The proposed action minimizes vulnerabilities to likely counter-arguments, rather than just explicitly naming them."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Judging whether a model's rhetorical tone of confidence perfectly aligns with the objective logical weight of its argument is highly subjective and impossible to score consistently.",
+        "rewrite": "The reasoning is factually supported and avoids logically unsupported absolute claims."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "conditions",
+    "comment": "The rubric mistakenly rewards the explicit artifacts of a debate process, like listing assumptions or naming critiques, rather than the intrinsic quality of the recommendation. To be neutral, it must test whether a plan actually survives edge cases, not just whether the model typed them out.",
+    "_tokens": 586,
+    "_cost": 0.00660375
+  },
+  "raise_now": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "A single capable model can easily provide a decisive, actionable recommendation without requiring multiple rounds of internal debate.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "A multi-model critique phase inherently surfaces edge cases and dependencies from dissenting models, handing the synthesizer an unearned checklist of conditions.",
+        "rewrite": "Identifies the single most critical assumption required for the recommended action to succeed."
+      },
+      {
+        "key": "runway_math",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Calculating the timeline implications of a 14-month runway is a deterministic analytical task equally accessible to a single good model.",
+        "rewrite": null
+      },
+      {
+        "key": "signal",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "By demanding an analysis of what every discarded choice signals rather than just the recommended one, this artificially rewards the exhaustive, exploratory coverage typical of a multi-model debate.",
+        "rewrite": "Addresses the signaling risks (to staff, customers, or investors) of the chosen recommendation."
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "A multi-model process with an explicit critique step structurally generates counter-arguments by default, satisfying this automatically without requiring superior underlying judgment.",
+        "rewrite": "Integrates a concrete mitigation strategy for the primary risk of the chosen action."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Evaluating 'strength of reasoning' against 'stated confidence' is highly subjective, allowing raters to project their own bias toward the naturally hedged tone of synthesized outputs.",
+        "rewrite": "Explicitly separates known facts from projected forecasts in its justification."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "signal",
+    "comment": "This rubric is heavily gerrymandered to reward the exhaustive, hedged output typical of a multi-model synthesis rather than actual decision quality. Demanding analysis of all discarded options and subjective 'calibration' ensures a decisive, high-quality single answer will frequently lose to a sprawling committee report.",
+    "_tokens": 609,
+    "_cost": 0.00684125
+  },
+  "migrate_off_cloud": {
+    "criteria": [
+      {
+        "key": "specific",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "Both a single decisive model and a synthesized consensus can realistically state a concrete, actionable course of action.",
+        "rewrite": null
+      },
+      {
+        "key": "conditions",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Critique agents naturally attack assumptions, spoon-feeding the synthesizer a ready-made list of conditional dependencies that a decisive single model might rightly omit.",
+        "rewrite": "Identifies the single most critical business assumption the recommendation depends upon to succeed."
+      },
+      {
+        "key": "capability_gap",
+        "verdict": "fair",
+        "mistagged": false,
+        "why": "The prompt explicitly flags the missing ops capability as a core constraint, so any competent single model can evaluate it as a tangible risk.",
+        "rewrite": null
+      },
+      {
+        "key": "cheaper_first",
+        "verdict": "favours_deliberation",
+        "mistagged": true,
+        "why": "Multiple dissenting agents will mechanically brainstorm alternatives like optimization during the critique phase, essentially padding the synthesized output with checked boxes.",
+        "rewrite": "Directly compares the ROI of moving to hardware versus optimizing existing cloud usage."
+      },
+      {
+        "key": "counter",
+        "verdict": "favours_deliberation",
+        "mistagged": false,
+        "why": "The deliberation workflow explicitly forces models to generate critiques, guaranteeing that counter-arguments are handed directly to the synthesizer.",
+        "rewrite": "Weighs the severity of the recommendation's primary drawback and explains why the risk is acceptable."
+      },
+      {
+        "key": "calibrated",
+        "verdict": "unmeasurable",
+        "mistagged": true,
+        "why": "Judging if text 'confidence' matches reasoning 'strength' is an entirely subjective vibe-check that allows graders to project their own bias onto the tone.",
+        "rewrite": "Explicitly states the financial or operational threshold that would invalidate its own recommendation."
+      }
+    ],
+    "overall_bias": "favours_deliberation",
+    "worst_criterion": "calibrated",
+    "comment": "The rubric functions as a checklist for debate artifacts rather than a measure of executive decision quality. It systematically rewards the hedging, conditionality, and scope-creep inherent to multi-agent synthesis while penalizing direct, single-model decisiveness.",
+    "_tokens": 593,
+    "_cost": 0.00667875
+  }
+}

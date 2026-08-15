@@ -2,21 +2,31 @@
   "_readme": [
     "Twenty judgement tasks and their rubrics. Editable without touching code.",
     "",
-    "Every task has a decision in it, no ground truth, and real trade-offs — the",
-    "class of question the council exists for. Tasks with checkable answers are",
-    "deliberately absent: they are what the convening rule declines, and putting",
-    "them here would measure the wrong thing.",
+    "Every task has a decision in it, no ground truth, and real trade-offs. Tasks",
+    "with checkable answers are deliberately absent: they are what the convening",
+    "rule declines, and putting them here would measure the wrong thing.",
     "",
-    "Criteria tagged favours_deliberation are ones a debate gets more easily than",
-    "a single answer does. They are kept because a good answer to a judgement",
-    "question really should do them, and tagged so the harness can report the",
-    "score with and without. If Quorum only leads on the tagged half, it is",
-    "winning on format, and that is visible rather than buried.",
+    "Criteria tagged favours_deliberation are ones a debate reaches more easily",
+    "than a single answer. They are kept because a good answer really should do",
+    "them, and tagged so the harness can report the score with and without.",
     "",
-    "HONEST STATUS: these were drafted in one pass and have not been reviewed by",
-    "anyone but their author. Rubric design is the part of this benchmark most",
-    "able to produce a flattering result by accident, and a second pair of eyes",
-    "on the wording is the highest-value review this repo can receive."
+    "REVIEWED 2026-08-15 by gemini-3.1-pro-preview, which wrote none of these and",
+    "was told to be hostile. It called all 19 rubrics it reviewed",
+    "deliberation-favouring, and flagged 44 of 120 criteria as mistagged.",
+    "",
+    "Two findings were systematic and both are applied here:",
+    "",
+    "  'conditions' (states what the recommendation depends on) was tagged",
+    "  neutral in every task. A critique round mechanically surfaces",
+    "  dependencies, so a council gets it structurally rather than by being",
+    "  right. Retagged favours_deliberation.",
+    "",
+    "  'calibrated' (stated confidence matches strength of reasoning) was",
+    "  unmeasurable: a judge cannot apply it consistently, and it rewards the",
+    "  hedged tone synthesised text has more of. Removed.",
+    "",
+    "What survives: the neutral column is now smaller and honest rather than",
+    "larger and contaminated. See evals/RUBRIC_REVIEW.md for the full verdict."
   ],
   "tasks": [
     {
@@ -25,12 +35,28 @@
       "task_type": "architecture",
       "complexity": 0.85,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on, rather than listing options."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "irreversibility", "text": "Engages with the fact that the storage-format change cannot be undone."},
-        {"key": "sequencing", "text": "Says what to do first, given that the roadmap has no slack."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on, rather than listing options."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "irreversibility",
+          "text": "Engages with the fact that the storage-format change cannot be undone."
+        },
+        {
+          "key": "sequencing",
+          "text": "Says what to do first, given that the roadmap has no slack."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -39,12 +65,28 @@
       "task_type": "pricing",
       "complexity": 0.9,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "segments", "text": "Treats the large-account and long-tail effects as separate problems rather than netting them out."},
-        {"key": "reversibility", "text": "Accounts for the difficulty of reversing contract terms."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "segments",
+          "text": "Treats the large-account and long-tail effects as separate problems rather than netting them out."
+        },
+        {
+          "key": "reversibility",
+          "text": "Accounts for the difficulty of reversing contract terms."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -53,12 +95,28 @@
       "task_type": "strategy",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "runway", "text": "Connects the choice to the 18-month runway rather than treating it as a general hiring question."},
-        {"key": "unknowns", "text": "Addresses how much of the roadmap being unknown changes the calculation."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "runway",
+          "text": "Connects the choice to the 18-month runway rather than treating it as a general hiring question."
+        },
+        {
+          "key": "unknowns",
+          "text": "Addresses how much of the roadmap being unknown changes the calculation."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -67,12 +125,24 @@
       "task_type": "risk",
       "complexity": 0.85,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "customer_risk", "text": "Takes the affected customers' compliance exposure seriously rather than as an externality."},
-        {"key": "timeline", "text": "Gives a timeline or trigger rather than an open-ended intention."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "timeline",
+          "text": "Gives a timeline or trigger rather than an open-ended intention."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -81,12 +151,28 @@
       "task_type": "strategy",
       "complexity": 0.85,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "precedent", "text": "Addresses what taking the deal implies for the next prospect who asks."},
-        {"key": "ongoing_cost", "text": "Distinguishes the one-off build cost from the permanent operational cost."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "precedent",
+          "text": "Addresses what taking the deal implies for the next prospect who asks."
+        },
+        {
+          "key": "ongoing_cost",
+          "text": "Distinguishes the one-off build cost from the permanent operational cost."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -95,12 +181,28 @@
       "task_type": "architecture",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "audit_constraint", "text": "Treats the five-month audit as a hard constraint on the options."},
-        {"key": "lock_in", "text": "Addresses whether the chosen option repeats the lock-in that created the problem."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "audit_constraint",
+          "text": "Treats the five-month audit as a hard constraint on the options."
+        },
+        {
+          "key": "lock_in",
+          "text": "Addresses whether the chosen option repeats the lock-in that created the problem."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -109,12 +211,29 @@
       "task_type": "strategy",
       "complexity": 0.85,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "moat", "text": "Says what the durable advantage would be after the code is public, or concedes there isn't one."},
-        {"key": "scope", "text": "Considers partial options (which components, which licence) rather than only all-or-nothing."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "moat",
+          "text": "Says what the durable advantage would be after the code is public, or concedes there isn't one."
+        },
+        {
+          "key": "scope",
+          "text": "Considers partial options (which components, which licence) rather than only all-or-nothing.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -123,12 +242,29 @@
       "task_type": "policy",
       "complexity": 0.75,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "two_tier", "text": "Addresses the risk of creating a two-tier company between office and remote staff."},
-        {"key": "evidence", "text": "Distinguishes three data points from a trend rather than treating them as proof."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "two_tier",
+          "text": "Addresses the risk of creating a two-tier company between office and remote staff."
+        },
+        {
+          "key": "evidence",
+          "text": "Distinguishes three data points from a trend rather than treating them as proof.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -137,12 +273,28 @@
       "task_type": "planning",
       "complexity": 0.75,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "decision_rule", "text": "Offers a way to decide, not only an answer, so the same argument next quarter is cheaper."},
-        {"key": "partial", "text": "Considers partial allocations rather than treating it as all-or-nothing."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "decision_rule",
+          "text": "Offers a way to decide, not only an answer, so the same argument next quarter is cheaper."
+        },
+        {
+          "key": "partial",
+          "text": "Considers partial allocations rather than treating it as all-or-nothing."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -151,12 +303,28 @@
       "task_type": "strategy",
       "complexity": 0.9,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "diagnosis", "text": "Attempts to say why self-serve is flat before choosing a response to it."},
-        {"key": "org_cost", "text": "Accounts for the organisational cost of the pivot, not just the revenue case."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "diagnosis",
+          "text": "Attempts to say why self-serve is flat before choosing a response to it."
+        },
+        {
+          "key": "org_cost",
+          "text": "Accounts for the organisational cost of the pivot, not just the revenue case."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -165,12 +333,28 @@
       "task_type": "risk",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "beyond_legal", "text": "Separates what is legally required from what is right or strategically wise."},
-        {"key": "no_evidence", "text": "Treats 'no evidence of access' as weaker than 'no access' rather than equating them."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "beyond_legal",
+          "text": "Separates what is legally required from what is right or strategically wise."
+        },
+        {
+          "key": "no_evidence",
+          "text": "Treats 'no evidence of access' as weaker than 'no access' rather than equating them."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -179,12 +363,29 @@
       "task_type": "pricing",
       "complexity": 0.75,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "attribution", "text": "Questions whether the free tier's value shows up in conversion numbers at all."},
-        {"key": "middle_option", "text": "Considers restriction designs rather than only keep-or-kill."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "attribution",
+          "text": "Questions whether the free tier's value shows up in conversion numbers at all.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "middle_option",
+          "text": "Considers restriction designs rather than only keep-or-kill."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -193,12 +394,29 @@
       "task_type": "architecture",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "root_cause", "text": "Distinguishes a build-performance problem from a team-coordination problem."},
-        {"key": "cheapest_first", "text": "Considers whether a cheaper intervention would answer the question before the expensive one."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "root_cause",
+          "text": "Distinguishes a build-performance problem from a team-coordination problem."
+        },
+        {
+          "key": "cheapest_first",
+          "text": "Considers whether a cheaper intervention would answer the question before the expensive one.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -207,12 +425,28 @@
       "task_type": "strategy",
       "complexity": 0.9,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "what_are_we_buying", "text": "Is explicit about whether the asset is the customers, the team, or the technology."},
-        {"key": "integration", "text": "Accounts for integration cost and the risk of the overlapping half."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "what_are_we_buying",
+          "text": "Is explicit about whether the asset is the customers, the team, or the technology."
+        },
+        {
+          "key": "integration",
+          "text": "Accounts for integration cost and the risk of the overlapping half."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -221,12 +455,28 @@
       "task_type": "policy",
       "complexity": 0.75,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "context_transfer", "text": "Proposes something concrete for moving the context out of one person's head."},
-        {"key": "pace", "text": "Says how fast to move and why that pace, given the risk of removing the bottleneck too quickly."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "context_transfer",
+          "text": "Proposes something concrete for moving the context out of one person's head."
+        },
+        {
+          "key": "pace",
+          "text": "Says how fast to move and why that pace, given the risk of removing the bottleneck too quickly."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -235,12 +485,28 @@
       "task_type": "strategy",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "promise_risk", "text": "Treats promising-and-not-delivering as a distinct and serious failure mode."},
-        {"key": "demand_signal", "text": "Asks whether three prospects justify permanent overhead, rather than assuming it."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "promise_risk",
+          "text": "Treats promising-and-not-delivering as a distinct and serious failure mode."
+        },
+        {
+          "key": "demand_signal",
+          "text": "Asks whether three prospects justify permanent overhead, rather than assuming it."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -249,12 +515,28 @@
       "task_type": "strategy",
       "complexity": 0.8,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "competitive_pressure", "text": "Separates 'competitors have it' from 'customers want it' rather than conflating them."},
-        {"key": "unit_economics", "text": "Engages with the per-user cost rather than treating it as a one-off build."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "competitive_pressure",
+          "text": "Separates 'competitors have it' from 'customers want it' rather than conflating them."
+        },
+        {
+          "key": "unit_economics",
+          "text": "Engages with the per-user cost rather than treating it as a one-off build."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -263,12 +545,28 @@
       "task_type": "planning",
       "complexity": 0.75,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "cause_vs_symptom", "text": "Distinguishes reducing escalation volume from redirecting who handles it."},
-        {"key": "feedback_loss", "text": "Considers what is lost if engineers stop hearing from customers directly."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "cause_vs_symptom",
+          "text": "Distinguishes reducing escalation volume from redirecting who handles it."
+        },
+        {
+          "key": "feedback_loss",
+          "text": "Considers what is lost if engineers stop hearing from customers directly."
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -277,12 +575,29 @@
       "task_type": "risk",
       "complexity": 0.9,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "runway_math", "text": "Reasons about what 14 months means for how long each option can be deferred."},
-        {"key": "signal", "text": "Addresses what each choice signals to staff, customers and future investors."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "runway_math",
+          "text": "Reasons about what 14 months means for how long each option can be deferred."
+        },
+        {
+          "key": "signal",
+          "text": "Addresses what each choice signals to staff, customers and future investors.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     },
     {
@@ -291,12 +606,29 @@
       "task_type": "architecture",
       "complexity": 0.85,
       "criteria": [
-        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
-        {"key": "conditions", "text": "States what the recommendation depends on being true."},
-        {"key": "capability_gap", "text": "Treats the missing ops capability as a real cost and risk, not a hiring detail."},
-        {"key": "cheaper_first", "text": "Considers whether the bill can be cut substantially without leaving the cloud."},
-        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
-        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+        {
+          "key": "specific",
+          "text": "Recommends one course of action specifically enough to act on."
+        },
+        {
+          "key": "conditions",
+          "text": "States what the recommendation depends on being true.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "capability_gap",
+          "text": "Treats the missing ops capability as a real cost and risk, not a hiring detail."
+        },
+        {
+          "key": "cheaper_first",
+          "text": "Considers whether the bill can be cut substantially without leaving the cloud.",
+          "favours_deliberation": true
+        },
+        {
+          "key": "counter",
+          "text": "Names the strongest consideration against its own recommendation.",
+          "favours_deliberation": true
+        }
       ]
     }
   ]

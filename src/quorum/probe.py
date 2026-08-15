@@ -153,11 +153,24 @@ class ProbeReport:
         return sum(r.chance * r.attempts for r in scored) / sum(r.attempts for r in scored)
 
     @property
+    def measured(self) -> bool:
+        """Did the probe actually score anything?
+
+        Load-bearing. With no scored guesses `accuracy` and `chance` are both
+        0.0, so `excess_over_chance` is 0.0 — which reads as "at or below
+        chance, no leak detected". A run where every prober call failed
+        therefore produced the most reassuring possible verdict. Any surface
+        reporting this metric must check `measured` before interpreting it."""
+        return self.attempts > 0
+
+    @property
     def excess_over_chance(self) -> float:
         """Percentage points above random. The number that actually matters.
 
         Zero or below means the schema blinding held for this prober. Positive
         is a leak, and its size is the finding.
+
+        Meaningless unless `measured` is True — see there.
         """
         return self.accuracy - self.chance
 
@@ -185,6 +198,7 @@ class ProbeReport:
             "accuracy": round(self.accuracy, 4),
             "chance": round(self.chance, 4),
             "excess_over_chance": round(self.excess_over_chance, 4),
+            "measured": self.measured,
             "summary": self.summary(),
         }
 
@@ -232,28 +246,45 @@ def probe_session(
     *,
     council: Council | None = None,
     writer: tr.TraceWriter | None = None,
-    max_tokens: int = 1024,
+    max_tokens: int = 8192,
     shuffle_seed: int | None = 0,
 ) -> ProbeResult:
     """Ask `prober` to identify the authors of a session's round-1 sheets.
 
-    `result` is a live `SessionResult`. The probe reads the sheets and the true
-    seat→model mapping from it, which is legitimate precisely because the probe
-    is the auditor's instrument, not a participant: it is scoring the record,
+    `result` is a live `SessionResult` **or** a `ReplayedSession` rebuilt from
+    a trace file. Accepting both is the point of the trace format rather than a
+    convenience: the blinding metric can be computed against any session ever
+    archived, months later, without rerunning a single debate. A probe that
+    could only read live objects would cost a fresh session per data point.
+
+    Reading the true seat→model mapping is legitimate precisely because the
+    probe is the auditor's instrument, not a participant: it scores the record,
     and only the anonymised half is ever put on the wire.
     """
-    council = council or result.council
-    if prober.model_id in [s.model_id for s in council.seats()]:
+    council = council or getattr(result, "council", None)
+    students = result.students
+    # A live result holds a tuple of students; a replayed one holds a dict
+    # keyed by seat. Normalise rather than making callers know which.
+    present = [
+        s for s in (students.values() if hasattr(students, "values") else students)
+        if s.present
+    ]
+    if len(present) < 2:
+        raise ProbeError("a probe needs at least two sheets to confuse")
+
+    # A replayed session carries no Council object, so fall back to the models
+    # that actually submitted sheets — which is the set that matters anyway.
+    seated = (
+        [s.model_id for s in council.seats()] if council is not None
+        else [s.model_id for s in present]
+    )
+    if prober.model_id in seated:
         raise ProbeError(
             f"prober {prober.model_id!r} took part in this session; a participant "
             "recognises its own sheet and scores a hit that measures nothing"
         )
     if not providers.has(prober.provider):
         raise KeyError(f"no provider registered for {prober.provider!r}")
-
-    present = [s for s in result.students if s.present]
-    if len(present) < 2:
-        raise ProbeError("a probe needs at least two sheets to confuse")
 
     # Labels for the probe are its own, unrelated to any round's blinding —
     # reusing a round-2 mapping would leak that mapping into the audit record.

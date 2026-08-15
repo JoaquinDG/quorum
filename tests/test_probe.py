@@ -243,3 +243,32 @@ class TraceTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class FailedMeasurementIsNotAPassTests(unittest.TestCase):
+    """Zero scored guesses must never read as "the blinding held".
+
+    A real run had every prober call fail on a token budget. Accuracy and
+    chance were both 0.0, so the excess was 0.0, and the verdict logic printed
+    "at or below chance — no leak detected". The most reassuring possible
+    output from a measurement that did not happen.
+    """
+
+    def test_a_report_with_no_guesses_knows_it_measured_nothing(self):
+        report = ProbeReport(results=[
+            ProbeResult("s1", "p", (), ("a", "b", "c"), abstained=True, detail="budget"),
+            ProbeResult("s2", "p", (), ("a", "b", "c"), abstained=True, detail="budget"),
+        ])
+        self.assertFalse(report.measured)
+        self.assertEqual(report.excess_over_chance, 0.0)  # the trap
+        self.assertIn("no scored guesses", report.summary())
+        self.assertFalse(report.to_dict()["measured"])
+
+    def test_a_report_with_guesses_is_measured(self):
+        from quorum.probe import Guess
+
+        report = ProbeReport(results=[
+            ProbeResult("s1", "p", (Guess("A", "a", "a", 1),), ("a", "b", "c")),
+        ])
+        self.assertTrue(report.measured)
+        self.assertTrue(report.to_dict()["measured"])

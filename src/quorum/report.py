@@ -221,10 +221,6 @@ def render_markdown(session: ReplayedSession, *, top_objections: int = 3) -> str
     out += ["## The numbers", "", "| | |", "| --- | --- |"]
     out.append(f"| Council | {session.council_size} of {len(session.students)} answered |")
     out.append(f"| Objections | {len(session.objections)} |")
-    if session.disagreement:
-        out.append(f"| Opening wording spread | {session.disagreement['score']:.2f} — "
-                   f"{session.disagreement['label']} |")
-        out.append("| | *vocabulary only — this does **not** measure agreement* |")
     moved = sum(1 for s in session.present_students if s.changed_position)
     revisers = len([s for s in session.present_students if s.diff is not None])
     out.append(f"| Position-change rate | {session.position_change_rate:.0%} "
@@ -506,12 +502,6 @@ def render_html(session: ReplayedSession, *, top_objections: int = 3) -> str:
     rows = [
         ("Council", f"{session.council_size} of {len(session.students)} answered"),
         ("Objections", str(len(session.objections))),
-        (
-            "Opening wording spread",
-            f"{session.disagreement['score']:.2f} — {session.disagreement['label']}"
-            if session.disagreement
-            else "not recorded",
-        ),
         (
             "Position-change rate",
             f"{session.position_change_rate:.0%} "

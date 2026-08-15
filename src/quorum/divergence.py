@@ -29,11 +29,22 @@ articulate. The failure runs both ways —
 number, because a reader who trusts it is misled in the direction the whole
 project exists to prevent.
 
-So it is kept, renamed to what it actually is, and stripped of the words that
-implied otherwise. `label` now describes vocabulary spread, not agreement.
-Nothing in the protocol reads it. A real disagreement score needs semantics —
-an embedding model or a judge scoring stance agreement — which stops being
-free and is honest P2 work rather than a weekend regex.
+**REMOVED FROM THE REPORT** by the council's own decision. Quorum was run on
+this question (`evals/DOGFOOD.md`, `wording_metric`): all three students opened
+arguing to keep it as a relabelled heuristic, and all three reversed. Their
+finding was that renaming does not help, because a precise-looking number gets
+read as substantive however it is captioned — a unanimous council using varied
+phrasing still *looks* contested. Keeping an inert metric on the page is not
+free: it costs clutter, cognitive overhead, and standing risk of downstream
+misuse.
+
+The computation stays here, and the trace still records it, on the strength of
+the dissent the arbiter refused to drop: deleting the *display* sacrifices no
+optionality while the raw data survives, so any real use case can recompute it
+later. The council also rejected paying for a semantic replacement before a
+concrete consumer exists.
+
+Nothing in the protocol reads it, and no reader-facing surface shows it.
 """
 
 from __future__ import annotations

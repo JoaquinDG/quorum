@@ -80,13 +80,38 @@ class RubricFileTests(unittest.TestCase):
             self.assertTrue(tagged, f"{task.key} has no favours_deliberation criteria")
             self.assertTrue(neutral, f"{task.key} has no neutral criteria")
 
-    def test_neutral_criteria_are_the_majority(self):
+    def test_every_task_keeps_at_least_one_neutral_criterion(self):
+        """Weakened from "neutral criteria are the majority", on evidence.
+
+        An independent reviewer called all 19 rubrics it saw
+        deliberation-favouring and flagged 44 of 120 criteria as mistagged —
+        including `conditions`, which sat in the neutral column of every task
+        and which a critique round surfaces mechanically. Applying its verdict
+        honestly leaves 7 of 20 tasks without a neutral majority.
+
+        The majority could be restored by inventing neutral criteria to hit the
+        old bar, which would be writing the rubric to pass its own test. The
+        finding is more useful than the guarantee: **a rubric for judgement
+        questions tilts toward deliberation close to structurally**, because
+        the properties that make an answer good on an ambiguous question are
+        largely the properties a debate produces. That is a real limit on what
+        this benchmark can prove, and it is why the harness reports both
+        columns rather than trusting either.
+        """
         for task in self.tasks:
-            self.assertGreater(
-                len(task.neutral_criteria),
-                len(task.criteria) - len(task.neutral_criteria),
-                f"{task.key} is scored mostly on criteria that favour deliberation",
+            self.assertTrue(
+                task.neutral_criteria,
+                f"{task.key} has no criterion a single answer can reach on merit",
             )
+
+    def test_the_deliberation_tilt_is_recorded_rather_than_hidden(self):
+        tilted = [
+            t.key for t in self.tasks
+            if len(t.neutral_criteria) <= len(t.criteria) - len(t.neutral_criteria)
+        ]
+        # Pinned so a future edit that quietly restores a comfortable majority
+        # has to explain itself.
+        self.assertEqual(len(tilted), 7, f"tilt changed: {tilted}")
 
     def test_criterion_keys_are_unique_within_a_task(self):
         for task in self.tasks:
@@ -111,11 +136,28 @@ class RubricFileTests(unittest.TestCase):
         ]
         self.assertEqual(declined, [], f"tasks the rule would decline: {declined}")
 
-    def test_the_file_states_its_review_status(self):
+    def test_the_file_records_its_adversarial_review(self):
         with open(TASKS_PATH, encoding="utf-8") as handle:
             data = json.load(handle)
         readme = " ".join(data["_readme"])
-        self.assertIn("not been reviewed", readme)
+        self.assertIn("REVIEWED", readme)
+        self.assertIn("hostile", readme)
+        self.assertIn("44 of 120", readme)
+
+    def test_the_unmeasurable_criterion_is_gone_everywhere(self):
+        """`calibrated` was called unmeasurable in 18 of 19 reviews: a judge
+        cannot apply it consistently, and it rewards the hedged tone
+        synthesised text has more of."""
+        for task in self.tasks:
+            self.assertNotIn("calibrated", [c.key for c in task.criteria], task.key)
+
+    def test_conditions_is_tagged_everywhere_it_appears(self):
+        """It sat in the neutral column of every task. A critique round
+        surfaces dependencies mechanically, so a council scored it for free."""
+        for task in self.tasks:
+            for c in task.criteria:
+                if c.key == "conditions":
+                    self.assertTrue(c.favours_deliberation, task.key)
 
 
 class HarnessTests(unittest.TestCase):

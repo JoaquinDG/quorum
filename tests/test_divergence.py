@@ -114,15 +114,27 @@ class DisagreementTests(unittest.TestCase):
             replayed.disagreement["score"], round(result.disagreement.score, 4)
         )
 
-    def test_it_reaches_the_report(self):
+    def test_it_no_longer_reaches_the_report(self):
+        """Removed by the council's own decision — see evals/DOGFOOD.md.
+
+        All three students opened arguing to keep it as a relabelled heuristic
+        and all three reversed: a precise-looking number reads as substantive
+        however it is captioned. The computation and the trace record survive,
+        which is what the preserved dissent asked for."""
         from quorum import render_html, render_markdown
 
         council = demo_council()
         result = convene(TASK, council, mock_pool(council), session_id="div-2")
         session = replay(list(result.events))
-        self.assertIn("Opening wording spread", render_html(session))
-        self.assertIn("Opening wording spread", render_markdown(session))
-        self.assertIn("does **not** measure agreement", render_markdown(session))
+        for surface in (render_html(session), render_markdown(session)):
+            self.assertNotIn("wording spread", surface)
+            self.assertNotIn("lexical variety", surface)
+
+    def test_the_computation_and_the_trace_record_survive(self):
+        council = demo_council()
+        result = convene(TASK, council, mock_pool(council), session_id="div-3")
+        self.assertIsNotNone(result.disagreement)
+        self.assertGreater(replay(list(result.events)).disagreement["score"], 0)
 
 
 class SkepticSeatTests(unittest.TestCase):

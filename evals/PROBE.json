@@ -1,0 +1,414 @@
+{
+  "summary": {
+    "sessions": 10,
+    "scored_sessions": 10,
+    "abstentions": 0,
+    "attempts": 31,
+    "hits": 13,
+    "accuracy": 0.4194,
+    "chance": 0.3226,
+    "excess_over_chance": 0.0968,
+    "measured": true,
+    "summary": "41.9% accuracy vs 32.3% chance (+9.7% points) over 31 guesses in 10 session(s)"
+  },
+  "sessions": [
+    {
+      "session": "arbiter-cross-lab-pro.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-v4-pro",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "deepseek-v4-pro",
+          "seat": 3,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "deepseek-v4-pro",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        },
+        {
+          "label": "C",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        }
+      ],
+      "hits": 0,
+      "attempts": 3,
+      "accuracy": 0.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "arbiter-cross-lab.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-v4-pro",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": true
+        },
+        {
+          "label": "B",
+          "guessed_model": "deepseek-v4-pro",
+          "actual_model": "deepseek-v4-pro",
+          "seat": 3,
+          "correct": true
+        },
+        {
+          "label": "C",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": true
+        }
+      ],
+      "hits": 3,
+      "attempts": 3,
+      "accuracy": 1.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "arbiter-fable.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-chat",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "deepseek-chat",
+          "actual_model": "deepseek-chat",
+          "seat": 3,
+          "correct": true
+        },
+        {
+          "label": "B",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        },
+        {
+          "label": "C",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        }
+      ],
+      "hits": 1,
+      "attempts": 3,
+      "accuracy": 0.3333,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "arbiter-opus.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-chat",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "deepseek-chat",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        },
+        {
+          "label": "C",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "deepseek-chat",
+          "seat": 3,
+          "correct": false
+        }
+      ],
+      "hits": 0,
+      "attempts": 3,
+      "accuracy": 0.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "arbiter-sonnet.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-4-6",
+        "deepseek-chat",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "claude-sonnet-4-6",
+          "seat": 1,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "deepseek-chat",
+          "actual_model": "deepseek-chat",
+          "seat": 3,
+          "correct": true
+        },
+        {
+          "label": "C",
+          "guessed_model": "claude-sonnet-4-6",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        }
+      ],
+      "hits": 1,
+      "attempts": 3,
+      "accuracy": 0.3333,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "four-lab.jsonl",
+      "sheets": 4,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-v4-pro",
+        "gpt-5.1",
+        "kimi-k2.6"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "deepseek-v4-pro",
+          "actual_model": "deepseek-v4-pro",
+          "seat": 3,
+          "correct": true
+        },
+        {
+          "label": "B",
+          "guessed_model": "kimi-k2.6",
+          "actual_model": "kimi-k2.6",
+          "seat": 4,
+          "correct": true
+        },
+        {
+          "label": "C",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": true
+        },
+        {
+          "label": "D",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": true
+        }
+      ],
+      "hits": 4,
+      "attempts": 4,
+      "accuracy": 1.0,
+      "chance": 0.25,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "seat-deepseek-pro.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-v4-pro",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": true
+        },
+        {
+          "label": "B",
+          "guessed_model": "deepseek-v4-pro",
+          "actual_model": "deepseek-v4-pro",
+          "seat": 3,
+          "correct": true
+        },
+        {
+          "label": "C",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": true
+        }
+      ],
+      "hits": 3,
+      "attempts": 3,
+      "accuracy": 1.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "seat-fable.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-fable-5",
+        "claude-sonnet-5",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "claude-fable-5",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": true
+        },
+        {
+          "label": "C",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "claude-fable-5",
+          "seat": 3,
+          "correct": false
+        }
+      ],
+      "hits": 1,
+      "attempts": 3,
+      "accuracy": 0.3333,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "live_mixed_lab.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "claude-haiku-4-5-20251001",
+          "seat": 3,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        },
+        {
+          "label": "C",
+          "guessed_model": "claude-haiku-4-5-20251001",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        }
+      ],
+      "hits": 0,
+      "attempts": 3,
+      "accuracy": 0.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    },
+    {
+      "session": "live_three_lab.jsonl",
+      "sheets": 3,
+      "prober_model": "gemini-3.1-pro-preview",
+      "roster": [
+        "claude-sonnet-5",
+        "deepseek-chat",
+        "gpt-5.1"
+      ],
+      "guesses": [
+        {
+          "label": "A",
+          "guessed_model": "claude-sonnet-5",
+          "actual_model": "gpt-5.1",
+          "seat": 2,
+          "correct": false
+        },
+        {
+          "label": "B",
+          "guessed_model": "gpt-5.1",
+          "actual_model": "deepseek-chat",
+          "seat": 3,
+          "correct": false
+        },
+        {
+          "label": "C",
+          "guessed_model": "deepseek-chat",
+          "actual_model": "claude-sonnet-5",
+          "seat": 1,
+          "correct": false
+        }
+      ],
+      "hits": 0,
+      "attempts": 3,
+      "accuracy": 0.0,
+      "chance": 0.3333,
+      "abstained": false,
+      "detail": ""
+    }
+  ]
+}
