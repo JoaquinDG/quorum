@@ -79,6 +79,7 @@ DEEPSEEK_PRO = Seat("deepseek-v4-pro", "deepseek", P["deepseek"])
 FABLE = Seat("claude-fable-5", "anthropic", P["fable"])
 KIMI = Seat("kimi-k2.6", "moonshot", P["moonshot"])
 GEMINI = Seat("gemini-3.5-flash", "google", P["gemini"])
+GEMINI_PRO = Seat("gemini-3.1-pro-preview", "google", ModelCost(1.25, 10.0))
 
 LINEUPS: dict[str, tuple[str, Council]] = {
     # -- experiment 1: which arbiter? students held fixed ------------------
@@ -121,6 +122,10 @@ LINEUPS: dict[str, tuple[str, Council]] = {
     "arbiter-cross-lab": (
         "first arbiter sharing no lab with any student",
         Council(students=(SONNET, GPT, DEEPSEEK_PRO), arbiter=GEMINI),
+    ),
+    "arbiter-cross-lab-pro": (
+        "independent arbiter again, at the stronger tier",
+        Council(students=(SONNET, GPT, DEEPSEEK_PRO), arbiter=GEMINI_PRO),
     ),
     # -- experiment 5: every lab, one seat each ---------------------------
     "five-lab": (
