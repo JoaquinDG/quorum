@@ -1,0 +1,28 @@
+[project]
+name = "quorum-council"
+version = "0.1.0"
+description = "A council of AI models that answers independently, critiques claim by claim, and shows you the argument. Structured deliberation with replay-complete traces."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Joaquin Diaz Gutierrez" }]
+dependencies = []
+keywords = ["llm", "multi-agent", "deliberation", "evaluation", "ai-safety"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/JoaquinDG/quorum"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+quorum = ["py.typed"]

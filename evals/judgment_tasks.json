@@ -1,0 +1,303 @@
+{
+  "_readme": [
+    "Twenty judgement tasks and their rubrics. Editable without touching code.",
+    "",
+    "Every task has a decision in it, no ground truth, and real trade-offs — the",
+    "class of question the council exists for. Tasks with checkable answers are",
+    "deliberately absent: they are what the convening rule declines, and putting",
+    "them here would measure the wrong thing.",
+    "",
+    "Criteria tagged favours_deliberation are ones a debate gets more easily than",
+    "a single answer does. They are kept because a good answer to a judgement",
+    "question really should do them, and tagged so the harness can report the",
+    "score with and without. If Quorum only leads on the tagged half, it is",
+    "winning on format, and that is visible rather than buried.",
+    "",
+    "HONEST STATUS: these were drafted in one pass and have not been reviewed by",
+    "anyone but their author. Rubric design is the part of this benchmark most",
+    "able to produce a flattering result by accident, and a second pair of eyes",
+    "on the wording is the highest-value review this repo can receive."
+  ],
+  "tasks": [
+    {
+      "key": "pipeline_rebuild",
+      "prompt": "Our ingestion pipeline is three years old and increasingly slow. Do we rebuild it on a streaming architecture this year, or refactor it in place? The rebuild changes the storage format irreversibly, and the roadmap has no slack.",
+      "task_type": "architecture",
+      "complexity": 0.85,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on, rather than listing options."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "irreversibility", "text": "Engages with the fact that the storage-format change cannot be undone."},
+        {"key": "sequencing", "text": "Says what to do first, given that the roadmap has no slack."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "usage_pricing",
+      "prompt": "Should we move from seat-based to usage-based pricing next quarter? Our largest accounts would pay less, our long tail would pay more, and contract terms are hard to reverse once signed.",
+      "task_type": "pricing",
+      "complexity": 0.9,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "segments", "text": "Treats the large-account and long-tail effects as separate problems rather than netting them out."},
+        {"key": "reversibility", "text": "Accounts for the difficulty of reversing contract terms."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "seniors_vs_juniors",
+      "prompt": "We can hire two senior engineers or four juniors for the same budget. Which is the better bet, given an 18-month runway and a roadmap that is mostly unknowns?",
+      "task_type": "strategy",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "runway", "text": "Connects the choice to the 18-month runway rather than treating it as a general hiring question."},
+        {"key": "unknowns", "text": "Addresses how much of the roadmap being unknown changes the calculation."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "deprecate_v1",
+      "prompt": "Should we deprecate the v1 API this year? About 6% of revenue still depends on it, migration is a multi-quarter compliance risk for those customers, and maintaining it costs a third of the platform team.",
+      "task_type": "risk",
+      "complexity": 0.85,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "customer_risk", "text": "Takes the affected customers' compliance exposure seriously rather than as an externality."},
+        {"key": "timeline", "text": "Gives a timeline or trigger rather than an open-ended intention."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "single_tenant",
+      "prompt": "A prospect worth 20% of current ARR will sign only if we run a single-tenant deployment for them. We are multi-tenant everywhere. Do we take it?",
+      "task_type": "strategy",
+      "complexity": 0.85,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "precedent", "text": "Addresses what taking the deal implies for the next prospect who asks."},
+        {"key": "ongoing_cost", "text": "Distinguishes the one-off build cost from the permanent operational cost."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "build_vs_buy_auth",
+      "prompt": "Our auth vendor just raised prices 4x at renewal. Do we absorb it, migrate to a competitor, or build in-house? We have two engineers who have done this before and a compliance audit in five months.",
+      "task_type": "architecture",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "audit_constraint", "text": "Treats the five-month audit as a hard constraint on the options."},
+        {"key": "lock_in", "text": "Addresses whether the chosen option repeats the lock-in that created the problem."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "open_source_core",
+      "prompt": "Should we open-source our core engine? It would help hiring and adoption, and it would let our two best-funded competitors ship our differentiator without paying for it.",
+      "task_type": "strategy",
+      "complexity": 0.85,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "moat", "text": "Says what the durable advantage would be after the code is public, or concedes there isn't one."},
+        {"key": "scope", "text": "Considers partial options (which components, which licence) rather than only all-or-nothing."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "remote_office",
+      "prompt": "We are fully remote and productivity is fine, but our last three senior hires cited 'no office' as their hesitation. Do we open an office in one city, and if so what does that do to everyone else?",
+      "task_type": "policy",
+      "complexity": 0.75,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "two_tier", "text": "Addresses the risk of creating a two-tier company between office and remote staff."},
+        {"key": "evidence", "text": "Distinguishes three data points from a trend rather than treating them as proof."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "tech_debt_quarter",
+      "prompt": "Engineering wants a full quarter for technical debt. Sales has three deals contingent on features that would slip. How do we decide, and what do we do?",
+      "task_type": "planning",
+      "complexity": 0.75,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "decision_rule", "text": "Offers a way to decide, not only an answer, so the same argument next quarter is cheaper."},
+        {"key": "partial", "text": "Considers partial allocations rather than treating it as all-or-nothing."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "enterprise_pivot",
+      "prompt": "Self-serve revenue is flat and enterprise deals are closing but slowly. Do we reorganise around enterprise, which means rebuilding the sales team and lengthening the cycle, or double down on fixing self-serve?",
+      "task_type": "strategy",
+      "complexity": 0.9,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "diagnosis", "text": "Attempts to say why self-serve is flat before choosing a response to it."},
+        {"key": "org_cost", "text": "Accounts for the organisational cost of the pivot, not just the revenue case."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "incident_disclosure",
+      "prompt": "We found a bug that exposed a subset of customer metadata for eleven days. No evidence of access. Legal says disclosure is not required in our jurisdiction. Do we tell customers?",
+      "task_type": "risk",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "beyond_legal", "text": "Separates what is legally required from what is right or strategically wise."},
+        {"key": "no_evidence", "text": "Treats 'no evidence of access' as weaker than 'no access' rather than equating them."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "free_tier",
+      "prompt": "Our free tier is 80% of signups, 4% of conversion, and roughly a third of infrastructure cost. Do we kill it, restrict it, or leave it alone?",
+      "task_type": "pricing",
+      "complexity": 0.75,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "attribution", "text": "Questions whether the free tier's value shows up in conversion numbers at all."},
+        {"key": "middle_option", "text": "Considers restriction designs rather than only keep-or-kill."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "monorepo_split",
+      "prompt": "Our monorepo takes 40 minutes to build and four teams block each other daily. Do we split it into services, invest in build tooling, or change how teams work?",
+      "task_type": "architecture",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "root_cause", "text": "Distinguishes a build-performance problem from a team-coordination problem."},
+        {"key": "cheapest_first", "text": "Considers whether a cheaper intervention would answer the question before the expensive one."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "acquire_competitor",
+      "prompt": "A struggling competitor with a good product and a bad balance sheet is for sale at roughly a year of our revenue. Their tech overlaps ours by half. Do we buy?",
+      "task_type": "strategy",
+      "complexity": 0.9,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "what_are_we_buying", "text": "Is explicit about whether the asset is the customers, the team, or the technology."},
+        {"key": "integration", "text": "Accounts for integration cost and the risk of the overlapping half."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "founder_role",
+      "prompt": "The technical co-founder is the bottleneck on every architectural decision but is also the only person with full system context. What should change, and how fast?",
+      "task_type": "policy",
+      "complexity": 0.75,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "context_transfer", "text": "Proposes something concrete for moving the context out of one person's head."},
+        {"key": "pace", "text": "Says how fast to move and why that pace, given the risk of removing the bottleneck too quickly."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "eu_region",
+      "prompt": "Three enterprise prospects want EU data residency. Standing up an EU region costs roughly two engineer-quarters and permanent operational overhead. Do we build it now, promise it, or decline the deals?",
+      "task_type": "strategy",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "promise_risk", "text": "Treats promising-and-not-delivering as a distinct and serious failure mode."},
+        {"key": "demand_signal", "text": "Asks whether three prospects justify permanent overhead, rather than assuming it."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "ai_feature_bet",
+      "prompt": "Every competitor shipped an AI assistant this year. Ours would take a quarter, cost real money per user, and we have no evidence our customers want one. Do we build it?",
+      "task_type": "strategy",
+      "complexity": 0.8,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "competitive_pressure", "text": "Separates 'competitors have it' from 'customers want it' rather than conflating them."},
+        {"key": "unit_economics", "text": "Engages with the per-user cost rather than treating it as a one-off build."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "support_outsource",
+      "prompt": "Support is 30% of engineering time via escalations. We can outsource tier-one, hire dedicated support engineers, or spend the quarter removing the causes of escalation. Which?",
+      "task_type": "planning",
+      "complexity": 0.75,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "cause_vs_symptom", "text": "Distinguishes reducing escalation volume from redirecting who handles it."},
+        {"key": "feedback_loss", "text": "Considers what is lost if engineers stop hearing from customers directly."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "raise_now",
+      "prompt": "We have 14 months of runway, flat growth for two quarters, and a term sheet at a lower valuation than our last round. Do we take it, cut costs and wait, or try to raise elsewhere?",
+      "task_type": "risk",
+      "complexity": 0.9,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "runway_math", "text": "Reasons about what 14 months means for how long each option can be deferred."},
+        {"key": "signal", "text": "Addresses what each choice signals to staff, customers and future investors."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    },
+    {
+      "key": "migrate_off_cloud",
+      "prompt": "Our cloud bill is 28% of revenue and growing faster than revenue. Moving to owned hardware would roughly halve it but needs an ops capability we do not have. Do we move?",
+      "task_type": "architecture",
+      "complexity": 0.85,
+      "criteria": [
+        {"key": "specific", "text": "Recommends one course of action specifically enough to act on."},
+        {"key": "conditions", "text": "States what the recommendation depends on being true."},
+        {"key": "capability_gap", "text": "Treats the missing ops capability as a real cost and risk, not a hiring detail."},
+        {"key": "cheaper_first", "text": "Considers whether the bill can be cut substantially without leaving the cloud."},
+        {"key": "counter", "text": "Names the strongest consideration against its own recommendation.", "favours_deliberation": true},
+        {"key": "calibrated", "text": "Its stated confidence matches the strength of the reasoning actually given.", "favours_deliberation": true}
+      ]
+    }
+  ]
+}

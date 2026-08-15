@@ -1,0 +1,178 @@
+"""HTTP adapter and single-lab tests. Never touches the network.
+
+Two properties are load-bearing and both are about *not* leaking or lying:
+
+- Keys come from the environment and nowhere else, and a missing key raises
+  `ProviderConfigError` — which the session treats as a bug to stop on, not an
+  outage to route around. A missing key marked as an absent student would run
+  a two-model session and label it as one, hiding a deployment error behind a
+  protocol feature built for a different problem.
+- A single-lab council runs but says so, everywhere a verdict appears.
+"""
+
+import unittest
+import unittest.mock as mock
+
+from quorum import (
+    AnthropicProvider,
+    Council,
+    ModelCost,
+    OpenAICompatibleProvider,
+    ProviderConfigError,
+    ProviderError,
+    ProviderPool,
+    ProviderRateLimited,
+    ProviderUnavailable,
+    Seat,
+    Session,
+    ScriptedProvider,
+    demo_council,
+    render_html,
+    render_markdown,
+    replay,
+)
+
+from test_session import TASK, default_script, scripted_council
+
+
+class KeyHandlingTests(unittest.TestCase):
+    def test_the_key_comes_from_the_environment(self):
+        with mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-from-env"}):
+            self.assertEqual(AnthropicProvider().api_key, "sk-from-env")
+
+    def test_a_missing_key_is_a_config_error_not_an_outage(self):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            with self.assertRaises(ProviderConfigError):
+                AnthropicProvider().complete("claude-x", "hello")
+            with self.assertRaises(ProviderConfigError):
+                OpenAICompatibleProvider().complete("gpt-x", "hello")
+
+    def test_a_config_error_is_not_treated_as_a_retryable_outage(self):
+        # ProviderConfigError is a ProviderError, so the session marks the
+        # student absent — but the reason text names the key, which is what
+        # makes the deployment bug findable rather than mysterious.
+        self.assertTrue(issubclass(ProviderConfigError, ProviderError))
+        self.assertFalse(issubclass(ProviderConfigError, ProviderUnavailable))
+        self.assertFalse(issubclass(ProviderConfigError, ProviderRateLimited))
+
+    def test_no_key_is_ever_written_into_a_trace_or_report(self):
+        council = demo_council()
+        script = default_script()
+        _, providers = scripted_council(script)
+        result = Session(*scripted_council(default_script())).run(
+            TASK, session_id="nokey"
+        )
+        blob = render_html(replay(list(result.events))) + str(
+            [e.to_dict() for e in result.events]
+        )
+        for marker in ("api_key", "ANTHROPIC_API_KEY", "x-api-key", "authorization"):
+            self.assertNotIn(marker, blob)
+
+    def test_the_openai_adapter_picks_its_token_parameter_by_host(self):
+        self.assertEqual(
+            OpenAICompatibleProvider()._max_tokens_param, "max_completion_tokens"
+        )
+        self.assertEqual(
+            OpenAICompatibleProvider(base_url="https://api.together.xyz")._max_tokens_param,
+            "max_tokens",
+        )
+        self.assertEqual(
+            OpenAICompatibleProvider(max_tokens_param="max_tokens")._max_tokens_param,
+            "max_tokens",
+        )
+
+    def test_a_custom_env_var_is_honoured(self):
+        with mock.patch.dict("os.environ", {"TOGETHER_API_KEY": "k"}, clear=True):
+            provider = OpenAICompatibleProvider(
+                base_url="https://api.together.xyz", env_var="TOGETHER_API_KEY",
+                name="together",
+            )
+            self.assertEqual(provider.api_key, "k")
+            self.assertEqual(provider.name, "together")
+
+
+class BackoffTests(unittest.TestCase):
+    def test_a_server_named_delay_wins_over_computed_backoff(self):
+        provider = AnthropicProvider(api_key="k")
+        self.assertEqual(provider._backoff(0, retry_after=3.0), 3.0)
+
+    def test_backoff_is_capped(self):
+        provider = AnthropicProvider(api_key="k", backoff_cap=2.0)
+        self.assertLessEqual(provider._backoff(10, retry_after=None), 2.0)
+        self.assertLessEqual(provider._backoff(0, retry_after=99.0), 2.0)
+
+    def test_an_http_date_retry_after_falls_back_rather_than_crashing(self):
+        provider = AnthropicProvider(api_key="k")
+        self.assertIsNone(provider._retry_after({"retry-after": "Wed, 21 Oct 2015 07:28:00 GMT"}))
+
+
+class SingleLabTests(unittest.TestCase):
+    def council(self, providers):
+        return Council(
+            students=tuple(
+                Seat(f"model-{i}", p, ModelCost(1, 2))
+                for i, p in enumerate(providers, start=1)
+            ),
+            arbiter=Seat("arbiter-model", "lab-x", ModelCost(1, 2)),
+        )
+
+    def test_one_provider_across_students_is_flagged(self):
+        council = self.council(["anthropic", "anthropic", "anthropic"])
+        self.assertTrue(council.single_lab)
+        self.assertEqual(council.labs(), ("anthropic",))
+        self.assertIn("blind spots correlate", council.warnings[0])
+
+    def test_a_mixed_council_carries_no_warning(self):
+        council = self.council(["anthropic", "openai", "google"])
+        self.assertFalse(council.single_lab)
+        self.assertEqual(council.warnings, ())
+
+    def test_two_labs_out_of_three_is_not_single_lab(self):
+        council = self.council(["anthropic", "anthropic", "openai"])
+        self.assertFalse(council.single_lab)
+
+    def test_the_demo_council_is_multi_lab(self):
+        self.assertFalse(demo_council().single_lab)
+
+    def run_single_lab(self):
+        script = default_script()
+        council = Council(
+            students=tuple(
+                Seat(f"model-{i}", "onelab", ModelCost(1, 2)) for i in (1, 2, 3)
+            ),
+            arbiter=Seat("arbiter-model", "lab-x", ModelCost(1, 2)),
+        )
+        pool = ProviderPool(
+            [
+                ScriptedProvider(script, name="onelab"),
+                ScriptedProvider(script, name="lab-x"),
+            ]
+        )
+        return Session(council, pool).run(TASK, session_id="onelab")
+
+    def test_the_session_surfaces_it(self):
+        result = self.run_single_lab()
+        self.assertTrue(result.single_lab)
+        self.assertTrue(result.warnings)
+        self.assertTrue(result.stats()["single_lab"])
+
+    def test_it_survives_replay(self):
+        replayed = replay(list(self.run_single_lab().events))
+        self.assertTrue(replayed.single_lab)
+        self.assertTrue(replayed.council_warnings)
+
+    def test_the_report_says_so_in_both_formats(self):
+        replayed = replay(list(self.run_single_lab().events))
+        self.assertIn("Single-lab council", render_html(replayed))
+        self.assertIn("Single-lab council", render_markdown(replayed))
+
+    def test_a_mixed_council_report_carries_no_such_banner(self):
+        council = demo_council()
+        from quorum import convene, mock_pool
+
+        result = convene(TASK, council, mock_pool(council), session_id="mixed")
+        self.assertNotIn("Single-lab council", render_html(replay(list(result.events))))
+
+
+if __name__ == "__main__":  # pragma: no cover
+    unittest.main()

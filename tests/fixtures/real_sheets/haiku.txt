@@ -1,0 +1,28 @@
+```json
+{
+  "position": "Refactor in place rather than rebuild on streaming architecture, because the one-way door nature of the rebuild combined with zero roadmap slack creates unacceptable execution risk without clear evidence that streaming specifically solves the identified bottleneck.",
+  "claims": [
+    {"n": 1, "text": "A one-way door architectural change coupled with no slack in the roadmap creates asymmetric downside risk: if the rebuild fails or takes longer than expected, the team has no capacity to recover or pivot."},
+    {"n": 2, "text": "Performance problems in established pipelines are often solvable through targeted optimization (parallelization, caching, storage tuning) rather than architectural rewrite, and refactoring allows systematic diagnosis of the actual bottleneck."},
+    {"n": 3, "text": "Streaming architectures solve different problems (unbounded data, real-time latency, complex event ordering) and introduce operational complexity that may not align with your team's expertise or your actual constraint."},
+    {"n": 4, "text": "The sunk cost and integration friction of rebuilding storage format across the system likely outweighs the performance gains unless you have evidence that the current format is the fundamental limiter."},
+    {"n": 5, "text": "Refactoring in place preserves the ability to reverse decisions or change course incrementally, which matters more when you have resource constraints and incomplete information about root causes."}
+  ],
+  "assumptions": [
+    "The primary problem is performance, not a fundamental architectural mismatch between data model and use case.",
+    "The team lacks capacity to absorb a major rewrite and its aftermath while maintaining the roadmap.",
+    "Current storage format is adequate for your actual use cases.",
+    "The specific performance bottleneck has not been diagnosed to the point where streaming is proven necessary.",
+    "Migration risk and testing burden would delay delivery by a significant margin relative to targeted optimization."
+  ],
+  "would_change_my_mind": [
+    "Evidence that the current architecture has an inherent sequential bottleneck that parallelization cannot fix.",
+    "Clear data showing that 70%+ of the performance loss is caused by the storage format or architectural assumptions, not tuning or infrastructure.",
+    "Confirmation that the team actually has spare capacity or that the roadmap can be reset to make room for a rebuild.",
+    "Proof that your team has shipped streaming systems successfully and that the operational model fits your scale.",
+    "A detailed post-mortem of refactoring attempts showing diminishing returns below the ROI threshold of a rebuild."
+  ],
+  "confidence": 0.67,
+  "nuance": "The recommendation flips if you discover the pipeline's design is fundamentally wrong for the workload. But 'old and slow' without that diagnosis usually means 'not yet well-tuned.'"
+}
+```

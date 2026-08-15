@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Zero dependencies is a feature: no install step, nothing to pin, and
+        # no network or secrets anywhere in this workflow.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Unit tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+
+      # Called out separately because these are the claims the README makes.
+      # If independence, blinding, no-self-grading, fail-closed or fixed
+      # rounds break, the project is promising something it cannot keep.
+      - name: Protocol invariants
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_invariants.py' -v
+
+      # The cost guardrail is only meaningful if a session that burns extra
+      # calls reports a higher bill. That has been wrong once already.
+      - name: Cost accounting
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_accounting.py' -v
+
+      # A rate cannot be asserted one task at a time, and "<10% of a mixed
+      # workload convenes" is an acceptance criterion.
+      - name: Convening eval
+        run: PYTHONPATH=src python evals/convening_eval.py
+
+      # The blinding metric. It never fails on an above-chance result — that
+      # is a finding to publish, not a build break — only if it could not
+      # measure anything at all.
+      - name: Deanonymization probe
+        run: PYTHONPATH=src python evals/probe_eval.py
+
+      # Offline this proves the harness runs end to end; the numbers are mock
+      # and every rendering of them says so.
+      - name: Benchmark harness
+        run: PYTHONPATH=src python evals/benchmark_eval.py
+
+      - name: Quickstart runs offline
+        run: PYTHONPATH=src python examples/quickstart.py
+
+      - name: Replay reconstructs the trace it just wrote
+        run: python replay.py traces/quickstart.jsonl
+
+      - name: Report is self-contained
+        run: |
+          test -f reports/quickstart.html
+          test -f reports/quickstart.md
+          ! grep -qE 'src=|@import|https?://' reports/quickstart.html
+
+      - name: Package builds
+        run: |
+          python -m pip install --upgrade build
+          python -m build
