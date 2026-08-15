@@ -56,6 +56,7 @@ PRICES = {
     "fable": ModelCost(3.0, 15.0),
     "openai": ModelCost(2.5, 10.0),
     "deepseek": ModelCost(0.28, 1.10),
+    "moonshot": ModelCost(0.60, 2.50),
 }
 
 
@@ -64,7 +65,7 @@ PRICES = {
 VENDORS = {
     "openai": ("https://api.openai.com", "OPENAI_API_KEY"),
     "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
-    "moonshot": ("https://api.moonshot.cn/v1", "MOONSHOT_API_KEY"),
+    "moonshot": ("https://api.moonshot.ai/v1", "MOONSHOT_API_KEY"),
     "together": ("https://api.together.xyz", "TOGETHER_API_KEY"),
 }
 

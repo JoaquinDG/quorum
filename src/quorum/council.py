@@ -25,7 +25,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 MIN_STUDENTS = 2
-MAX_STUDENTS = 3
+MAX_STUDENTS = 5
+"""The spec set this at 3 and called more a v1 non-goal, on the grounds that
+larger councils "multiply cost and add little diversity beyond 3 distinct
+model families". Both halves have since been measured, and they came apart.
+
+*Cost multiplies* — confirmed, though not for the stated reason. Objections
+scale n(n-1) and the arbiter reads every one of them, so a fourth student
+inflates the line that is already ~69% of the bill. Four students costs
+roughly 1.7x a session, five roughly 2.4x.
+
+*Diversity saturates at three* — this depends entirely on something the spec
+did not distinguish: whether the fourth seat is a fourth **lab** or a second
+model from a lab already seated. The second case is close to the worst
+possible trade, buying correlated priors at 1.7x. The first is the thing the
+protocol is actually for.
+
+So the cap moves to 5 to make the question testable, and the default council
+stays at 3. Anything above 3 raises a warning naming the cost, and any lab
+holding two seats raises another — because the number that matters is distinct
+labs, not headcount, and the code should say so rather than assume it."""
 
 
 @dataclass(frozen=True)
@@ -159,8 +178,39 @@ class Council:
         return self.arbiter.provider in {s.provider for s in self.students}
 
     @property
+    def lab_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for student in self.students:
+            counts[student.provider] = counts.get(student.provider, 0) + 1
+        return counts
+
+    @property
+    def doubled_labs(self) -> tuple[str, ...]:
+        """Labs holding more than one student seat.
+
+        `single_lab` only fires when *every* student shares a provider, which
+        misses the more common shape: four students across three labs, where
+        one lab quietly holds two of them. Those two seats share training data
+        and alignment, so the council has three independent priors and pays for
+        four."""
+        return tuple(sorted(lab for lab, n in self.lab_counts.items() if n > 1))
+
+    @property
     def warnings(self) -> tuple[str, ...]:
         warnings: list[str] = []
+        if len(self.students) > 3:
+            warnings.append(
+                f"{len(self.students)}-student council: objections scale with n(n-1) "
+                "and the arbiter reads all of them, so this costs roughly "
+                f"{1 + 0.35 * (len(self.students) - 3):.1f}x a three-student session"
+            )
+        if self.doubled_labs and not self.single_lab:
+            warnings.append(
+                "lab(s) holding more than one seat: "
+                + ", ".join(f"{lab} x{self.lab_counts[lab]}" for lab in self.doubled_labs)
+                + " — those seats share priors, so the council has fewer independent "
+                "views than students"
+            )
         if self.single_lab:
             warnings.append(
                 f"single-lab council: all {len(self.students)} students are from "

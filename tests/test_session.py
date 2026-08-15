@@ -429,12 +429,44 @@ class CouncilValidationTests(unittest.TestCase):
                 arbiter=Seat("z", "lab-z"),
             )
 
-    def test_a_fourth_student_is_rejected(self):
+    def test_a_fourth_student_is_allowed_but_warns_about_cost(self):
+        """The cap moved from 3 to 5 once a fourth distinct lab was reachable.
+        The spec's cost objection is real and survives as a warning: objections
+        scale n(n-1) and the arbiter reads all of them."""
+        council = Council(
+            students=tuple(Seat(f"m{i}", f"l{i}") for i in range(4)),
+            arbiter=Seat("z", "lab-z"),
+        )
+        self.assertEqual(len(council.students), 4)
+        self.assertTrue(any("4-student council" in w for w in council.warnings))
+
+    def test_a_sixth_student_is_still_rejected(self):
         with self.assertRaises(CouncilError):
             Council(
-                students=tuple(Seat(f"m{i}", f"l{i}") for i in range(4)),
+                students=tuple(Seat(f"m{i}", f"l{i}") for i in range(6)),
                 arbiter=Seat("z", "lab-z"),
             )
+
+    def test_a_lab_holding_two_seats_is_flagged(self):
+        """Four students across three labs means three independent priors
+        bought at the price of four — the shape `single_lab` misses."""
+        council = Council(
+            students=(Seat("a", "anthropic"), Seat("b", "anthropic"),
+                      Seat("c", "openai"), Seat("d", "deepseek")),
+            arbiter=Seat("z", "lab-z"),
+        )
+        self.assertFalse(council.single_lab)
+        self.assertEqual(council.doubled_labs, ("anthropic",))
+        self.assertEqual(council.lab_counts["anthropic"], 2)
+        self.assertTrue(any("more than one seat" in w for w in council.warnings))
+
+    def test_one_seat_per_lab_raises_no_correlation_warning(self):
+        council = Council(
+            students=(Seat("a", "anthropic"), Seat("b", "openai"), Seat("c", "deepseek")),
+            arbiter=Seat("z", "lab-z"),
+        )
+        self.assertEqual(council.doubled_labs, ())
+        self.assertEqual(council.warnings, ())
 
     def test_a_lone_student_is_rejected(self):
         with self.assertRaises(CouncilError):

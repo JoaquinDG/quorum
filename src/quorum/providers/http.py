@@ -265,7 +265,11 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
     ) -> None:
         super().__init__(**transport)
         self.api_key = api_key or os.environ.get(env_var, "")
-        self.base_url = base_url.rstrip("/")
+        # Vendors document their base URL inconsistently: some give the origin,
+        # some include `/v1`. This adapter appends `/v1/chat/completions`, so a
+        # documented URL pasted verbatim produced `/v1/v1/chat/completions` and
+        # a 404 that named neither the model nor the mistake. Accept both.
+        self.base_url = base_url.rstrip("/").removesuffix("/v1")
         self.env_var = env_var
         if name:
             self.name = name

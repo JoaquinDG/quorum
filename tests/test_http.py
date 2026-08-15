@@ -229,3 +229,23 @@ class TruncationTests(unittest.TestCase):
         """A real reasoning-model sheet cost 756 visible tokens, and critiques
         run larger. The default must leave room for that plus reasoning."""
         self.assertGreaterEqual(SessionConfig().max_tokens, 4096)
+
+
+class BaseUrlNormalisationTests(unittest.TestCase):
+    """Vendors document base URLs with and without `/v1`.
+
+    Pasting a documented URL verbatim produced `/v1/v1/chat/completions` and a
+    404 whose body named neither the model nor the mistake. Both forms now
+    resolve to the same endpoint.
+    """
+
+    def test_a_trailing_v1_is_absorbed(self):
+        for url in ("https://api.moonshot.ai/v1", "https://api.moonshot.ai/v1/",
+                    "https://api.moonshot.ai"):
+            with self.subTest(url=url):
+                provider = OpenAICompatibleProvider(api_key="k", base_url=url)
+                self.assertEqual(provider.base_url, "https://api.moonshot.ai")
+
+    def test_a_path_that_merely_ends_in_v1_something_is_untouched(self):
+        provider = OpenAICompatibleProvider(api_key="k", base_url="https://host/api/v10")
+        self.assertEqual(provider.base_url, "https://host/api/v10")

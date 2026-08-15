@@ -103,7 +103,20 @@ def single_model_baseline(
 
 
 def cost_multiple(session_cost: float, baseline: Baseline) -> float | None:
-    """How many single-model answers this session cost. `None` if unpriceable."""
+    """How many single-model answers this session cost. `None` if unpriceable.
+
+    **Within-session only. Do not compare this number across councils.**
+
+    The baseline defaults to the priciest seat *in that council*, so changing
+    the lineup moves the yardstick as well as the measurement. A lineup
+    experiment made the trap concrete: swapping the arbiter from Opus to
+    Sonnet reported 13.3x -> 27.4x, reading as a doubling in cost, while the
+    session actually got *cheaper* in absolute terms. The multiple only moved
+    because the most expensive seat — and therefore the denominator — had.
+
+    To compare lineups, pin `SessionConfig.baseline_model` to one model across
+    every arm, or compare `cost_est` directly.
+    """
     if not baseline.priced or baseline.cost_est <= 0:
         return None
     return session_cost / baseline.cost_est
