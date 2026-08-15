@@ -1,0 +1,64 @@
+{
+  "opus": {
+    "seat": 1,
+    "critics": {
+      "A": "sonnet",
+      "B": "haiku"
+    },
+    "allowed": {
+      "A": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "B": [
+        2,
+        5
+      ]
+    }
+  },
+  "sonnet": {
+    "seat": 2,
+    "critics": {
+      "A": "haiku",
+      "B": "opus"
+    },
+    "allowed": {
+      "A": [
+        1,
+        5
+      ],
+      "B": [
+        1,
+        2,
+        4,
+        5
+      ]
+    }
+  },
+  "haiku": {
+    "seat": 3,
+    "critics": {
+      "A": "opus",
+      "B": "sonnet"
+    },
+    "allowed": {
+      "A": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "B": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  }
+}

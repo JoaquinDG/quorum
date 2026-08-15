@@ -225,8 +225,11 @@ def render_markdown(session: ReplayedSession, *, top_objections: int = 3) -> str
         out.append(f"| Opening wording spread | {session.disagreement['score']:.2f} — "
                    f"{session.disagreement['label']} |")
         out.append("| | *vocabulary only — this does **not** measure agreement* |")
+    moved = sum(1 for s in session.present_students if s.changed_position)
+    revisers = len([s for s in session.present_students if s.diff is not None])
     out.append(f"| Position-change rate | {session.position_change_rate:.0%} "
-               "(0% = theatre, 100% = herding) |")
+               f"({moved} of {revisers}) |")
+    out.append("| | *the 15-60% band is a rate across sessions, not a verdict on one* |")
     out.append(f"| Dissent preserved | {'yes' if session.dissent_preserved else 'no'} |")
     out.append(f"| Claim compliance | {session.compliance_rate:.0%} |")
     out.append(f"| Session cost | ${session.cost_est:.4f}"
@@ -509,7 +512,12 @@ def render_html(session: ReplayedSession, *, top_objections: int = 3) -> str:
             if session.disagreement
             else "not recorded",
         ),
-        ("Position-change rate", f"{session.position_change_rate:.0%}"),
+        (
+            "Position-change rate",
+            f"{session.position_change_rate:.0%} "
+            f"({sum(1 for s in session.present_students if s.changed_position)}"
+            f" of {len([s for s in session.present_students if s.diff is not None])})",
+        ),
         ("Dissent preserved", "yes" if session.dissent_preserved else "no"),
         ("Claim compliance", f"{session.compliance_rate:.0%}"),
         (

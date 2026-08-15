@@ -252,6 +252,44 @@ def build_revision_prompt(
     )
 
 
+REVISION_REPAIR_TEMPLATE = """Your revised sheet was rejected: {reason}
+
+The sheet must still obey the original template — at most {max_claims} claims,
+one sentence each, numbered from 1 with no gaps. Answering an objection by
+*adding* a claim means merging or dropping another one; the cap does not move
+because the round changed.
+
+Submit the whole sheet again, corrected.
+
+{original}
+"""
+
+
+def build_revision_repair_prompt(original: str, reason: str, max_claims: int) -> str:
+    """One re-prompt for a revision that broke the schema.
+
+    Added after a real model produced an excellent revision — a genuine
+    position change citing six specific objections, with an honest drop in
+    confidence — and had it discarded for carrying six claims instead of five.
+
+    The failure is structural rather than careless. Round 3 asks a student to
+    answer objections, answering adds material, and the cap forbids growth, so
+    the models that engage hardest are the ones pushed over the line. Round 3
+    was also the only round with no repair budget at all, which is exactly
+    backwards: it is the round where the schema is hardest to satisfy and where
+    losing the output costs most, because the revision *is* the position-change
+    data the protocol publishes.
+
+    The cap itself does not move. It is the discipline that makes claims
+    objectionable one at a time, and relaxing it in the round where positions
+    are restated would hollow it out. One re-prompt that says "merge or drop
+    one" keeps the discipline and keeps the content.
+    """
+    return REVISION_REPAIR_TEMPLATE.format(
+        reason=reason, max_claims=max_claims, original=original
+    )
+
+
 # --------------------------------------------------------------------------
 # grading
 # --------------------------------------------------------------------------

@@ -1,0 +1,26 @@
+```json
+{
+  "objections": [
+    {
+      "sheet": "A",
+      "claim_n": 1,
+      "argument": "The claim assumes deferral creates recovery room, but the actual constraint—zero roadmap slack—does not depend on timing. If slack does not exist this year, what ensures it exists next year when the storage-format decision must be made? Postponing an irreversible choice does not eliminate the constraint that it will eventually be made under pressure. The author has not noticed that 'no room to recover' is inherent to the constraint itself, not to when the decision is made."
+    },
+    {
+      "sheet": "A",
+      "claim_n": 5,
+      "argument": "This assumes a one-quarter pilot surfaces storage-format requirements that hold at production scale, but pilots systematically undersample failure modes that emerge only at volume: data-skew-induced partition imbalance, compaction overhead accumulation under growth, regulatory retention complexity, or access-pattern shifts once steady state is reached. A pilot that succeeds at small scale often fails in production because those constraints were never present in the pilot window."
+    },
+    {
+      "sheet": "B",
+      "claim_n": 2,
+      "argument": "This cost-benefit analysis is load-bearing on profiling results the author admits may not yet exist. If profiling instead shows that slowness stems from an architectural ceiling—batch windows colliding, per-batch overhead dominating at scale—then in-place refactoring cannot address it, and the entire recommendation fails. The author presents an empirical generalization ('almost always hotspots') as fact without disclosing the profiling data that would justify it."
+    },
+    {
+      "sheet": "B",
+      "claim_n": 5,
+      "argument": "This assumes storage format and compute architecture can be decoupled, but optimal schemas are paradigm-specific: batch systems require time-partitioned immutable segments; streaming requires key-partitioned stateful coordination. Choosing batch-optimized storage now does not preserve the option to stream later without a storage migration—it often forces one. The author has not noticed that storage schema and architectural paradigm are coupled at the data-model level, making the claimed decoupling illusory."
+    }
+  ]
+}
+```

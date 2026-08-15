@@ -702,7 +702,6 @@ def diff_sheets(
 
     position_similarity = _similarity(before.position, after.position)
     position_changed = _normalize(before.position) != _normalize(after.position)
-    computed_change = position_changed or bool(dropped) or bool(remaining)
 
     return SheetDiff(
         position_changed=position_changed,
@@ -712,7 +711,20 @@ def diff_sheets(
         claims_edited=tuple(edited),
         confidence_delta=after.confidence - before.confidence,
         declared_change=declared_change,
-        declaration_matches_diff=(declared_change == computed_change),
+        # Compared against the *position* diff, not against any change at all.
+        #
+        # `changed_position` is defined for the model as "true only if your
+        # one-sentence position now says something different", so comparing it
+        # to a broader notion of change measures the model against a question
+        # it was never asked. A real revision made that concrete: a model held
+        # its position word for word, correctly declared `false`, and rewrote
+        # four of its five claims in response to objections — the healthiest
+        # possible outcome — and the flag called it a discrepancy.
+        #
+        # The flag exists to catch two specific pathologies: claiming to have
+        # reconsidered while resubmitting the same sentence, and rewriting the
+        # position while reporting no change. Both are about the position.
+        declaration_matches_diff=(declared_change == position_changed),
     )
 
 

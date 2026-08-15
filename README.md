@@ -7,7 +7,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 299 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 314 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -399,7 +399,19 @@ Mocks emit what their author decided they would emit, so a schema that has only 
 
 **The disagreement score broke** (above), and **single-lab correlation showed up immediately** (above).
 
-To be exact about what this was: one lab, three tiers, one question, orchestrated by hand. Not a benchmark, not a blinding measurement, and no substitute for either.
+Rounds 2 and 3 were then run the same way, and this is where it earned its keep.
+
+**The critique schema held under the hardest available test.** All three models had reached the *same* conclusion in round 1 — the worst case for a protocol built to surface disagreement. The format gave them nowhere to say so: no agreement field, one objection per foreign sheet minimum, name a claim number. They produced **23 objections against an acceptance minimum of 6**, none of them agreement in disguise, none needing a repair. Sonnet caught Haiku invoking *sunk cost* as a reason to preserve the status quo and called it "the sunk cost fallacy pointed at itself". Opus, unprompted, noticed what the single-lab warning predicts: *"Both sheets converge on the same answer via this same one-sided accounting, which should reduce rather than increase confidence."*
+
+**Round 3 found three engine defects.**
+
+1. *The revision round had no repair budget.* Opus's revision was excellent — genuine position change, six cited objections, confidence 0.72 → 0.61 — and carried six claims against a cap of five, so the engine discarded it and let the opening sheet stand. The failure is structural: round 3 asks a student to answer objections, answering adds material, the cap forbids growth, so **the students who engage hardest are the ones pushed over the line**. It was also the only round with zero repairs, while critique and verdict each had one. `SessionConfig.revision_repairs` now exists; the cap did not move. Opus's repaired attempt came back at five claims and still changed position.
+2. *`declaration_matches_diff` fired on healthy behaviour.* Haiku held its position word for word, correctly declared `changed_position: false`, and rewrote four of its five claims under objection — the ideal outcome. The flag compared that declaration against *any* change rather than the position diff, so it registered a discrepancy. It is sold in this README as a sycophancy detector; it was firing on exactly what the protocol is trying to produce.
+3. *The position-change rate was presented as a per-session verdict.* It is a population statistic. A 3-student council can only score 0/33/67/100%, so **three of its four reachable values fall outside the 15–60% band by arithmetic**. Every surface now shows the raw count alongside the rate and says the band applies across sessions.
+
+The session scored **67% — outside the band**, reported as found. One hypothesis of mine was also wrong: I suspected the claim-similarity threshold would misread rewordings as drop-and-add. It didn't — real revisions came in at 0.06–0.33 similarity (genuine rewrites) while an untouched claim matched at exactly 1.00.
+
+To be exact about what this was: one lab, three tiers, one question, orchestrated by hand. Not a benchmark, not a blinding measurement, and no substitute for either. Everything is kept in `tests/fixtures/real_session/`, with a regression test per finding.
 
 ## Known limitations
 
@@ -429,7 +441,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           299 tests; protocol invariants, review regressions, real-output fixtures
+tests/           314 tests; protocol invariants, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility

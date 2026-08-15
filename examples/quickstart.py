@@ -86,7 +86,11 @@ def main() -> int:
           + (" (REDUCED)" if stats["reduced_council"] else ""))
     print(f"  objections raised:    {stats['objections']}")
     print(f"  position-change rate: {stats['position_change_rate']:.0%}"
-          "   (0% = theatre, 100% = herding)")
+          f"  ({sum(1 for s in result.students if s.changed_position)}"
+          f" of {result.council_size} moved)")
+    print("    the 15-60% healthy band is a rate ACROSS sessions, not a verdict on")
+    print("    one: a 3-student council can only score 0/33/67/100%, so three of")
+    print("    its four possible outcomes fall outside the band by arithmetic")
     print(f"  dissent preserved:    {stats['dissent_preserved']}")
     print(f"  claim compliance:     {stats['compliance_rate']:.0%}")
     print(f"  re-prompts:           {stats['discarded_calls']}")

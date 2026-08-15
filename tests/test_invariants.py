@@ -19,6 +19,8 @@ which `test_trace_replay` proves by rebuilding the session from it.
 
 import unittest
 
+import json
+
 from quorum import (
     CRITIQUE_PROMPT_HEADER,
     REVISION_PROMPT_HEADER,
@@ -30,6 +32,7 @@ from quorum import (
     ScriptedProvider,
     Seat,
     Session,
+    SessionConfig,
     build_sheet_prompt,
     convene,
     demo_council,
@@ -252,8 +255,43 @@ class FixedRoundTests(unittest.TestCase):
         )
         Session(council, pool).run(TASK, session_id="inv-bounded")
 
-        # sheet + critique + one repair + revision
-        self.assertEqual(len(pool.get("lab-1").calls), 4)
+        # The full per-round budget, spelled out so a change to any of them
+        # shows up here rather than as a mystery call count:
+        #   round 1  sheet                        1 call
+        #   round 2  critique + 1 repair          2 calls
+        #   round 3  revision + 1 repair          2 calls
+        # The script feeds non-compliant text throughout, so every repair the
+        # config allows is taken and none beyond it.
+        config = SessionConfig()
+        expected = 1 + (1 + config.critique_repairs) + (1 + config.revision_repairs)
+        self.assertEqual(len(pool.get("lab-1").calls), expected)
+
+    def test_a_revision_repair_is_offered_exactly_once(self):
+        """Round 3 had no repair budget until a real model's revision was
+        rejected for carrying six claims. One repair, then absent."""
+        six_claims = json.dumps({
+            "position": "a position",
+            "claims": [{"n": i, "text": f"claim {i} text"} for i in range(1, 7)],
+            "assumptions": ["a"], "would_change_my_mind": ["b"], "confidence": 0.6,
+            "changed_position": False, "because": [],
+        })
+        script = default_script()
+        script["model-1"] = [script["model-1"][0], critique_json(), six_claims, six_claims]
+        seats = [Seat(f"model-{i}", f"lab-{i}", ModelCost(1, 2)) for i in (1, 2, 3)]
+        council = Council(students=tuple(seats), arbiter=Seat("arbiter-model", "lab-x"))
+        pool = ProviderPool(
+            [ScriptedProvider(script, name=s.provider) for s in council.seats()]
+        )
+        result = Session(council, pool).run(TASK, session_id="inv-revrepair")
+
+        self.assertEqual(len(pool.get("lab-1").calls), 4)  # sheet, critique, revision, repair
+        self.assertEqual(result.student(1).absent_rounds, (3,))
+        discarded = [
+            e for e in result.events
+            if e.event_type == tr.ATTEMPT_DISCARDED and e.payload["seat"] == 1
+        ]
+        self.assertEqual(len(discarded), 1)
+        self.assertIn("exceeds the cap", discarded[0].payload["detail"])
 
     def test_no_round_beyond_grading_is_ever_traced(self):
         _, result, _ = run_with_recording_mocks()

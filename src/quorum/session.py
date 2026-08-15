@@ -49,6 +49,7 @@ from .prompts import (
     leading_sheet_label,
     build_critique_repair_prompt,
     build_revision_prompt,
+    build_revision_repair_prompt,
     build_sheet_prompt,
     build_verdict_prompt,
     build_verdict_repair_prompt,
@@ -56,6 +57,7 @@ from .prompts import (
 )
 from .providers.base import Completion, ProviderError, ProviderPool
 from .sheets import (
+    MAX_CLAIMS,
     MIN_ARGUMENT_CHARS,
     AnswerSheet,
     ObjectionRef,
@@ -89,6 +91,14 @@ class SessionConfig:
     """Re-prompts allowed for a non-compliant critique. One: enough to rescue
     a good critic that missed a field, too few to let a model that cannot
     follow the format spend the session's budget failing."""
+
+    revision_repairs: int = 1
+    """Re-prompts allowed for a revised sheet that broke the schema.
+
+    Was zero until a real model's revision was rejected for carrying six
+    claims. Round 3 asks students to answer objections, answering adds
+    material, and the cap forbids growth — so the round with the hardest
+    schema to satisfy had the smallest budget for missing it."""
 
     verdict_repairs: int = 1
     max_tokens: int = 2048
@@ -743,13 +753,40 @@ class Session:
                 )
                 continue
             counters["attempts"] += 1
-            try:
-                revision = parse_revision(completion.text, allowed=allowed, actor=actor)
-            except SheetError as exc:
-                counters["failures"] += 1
+            revision = None
+            last_error = ""
+            last_completion = completion
+            for attempt in range(self.config.revision_repairs + 1):
+                if attempt:
+                    try:
+                        completion = self._call(seat, attempt_prompt)
+                    except ProviderError as exc:
+                        counters["provider_errors"] += 1
+                        last_error = str(exc)
+                        break
+                    counters["attempts"] += 1
+                    last_completion = completion
+                try:
+                    revision = parse_revision(completion.text, allowed=allowed, actor=actor)
+                    break
+                except SheetError as exc:
+                    counters["failures"] += 1
+                    last_error = str(exc)
+                    revision = None
+                    if attempt < self.config.revision_repairs:
+                        self._discarded(
+                            session_id, ROUND_REVISION, actor, seat_no, seat,
+                            completion, "malformed_revision", last_error,
+                        )
+                        attempt_prompt = build_revision_repair_prompt(
+                            prompt, last_error, MAX_CLAIMS
+                        )
+
+            if revision is None:
                 self._absent(
                     session_id, ROUND_REVISION, seat_no, actor, "malformed_revision",
-                    str(exc), absences, records, completion=completion, seat=seat,
+                    last_error, absences, records,
+                    completion=last_completion, seat=seat,
                 )
                 continue
 
