@@ -39,6 +39,7 @@ from .prompts import (
     build_revision_prompt,
     build_revision_repair_prompt,
     build_sheet_prompt,
+    build_sheet_repair_prompt,
     build_verdict_prompt,
     render_sheet,
 )
@@ -227,6 +228,7 @@ __all__ = [
     "build_revision_prompt",
     "build_revision_repair_prompt",
     "build_sheet_prompt",
+    "build_sheet_repair_prompt",
     "build_skeptic_critique_prompt",
     "build_transcript",
     "build_verdict_prompt",

@@ -242,3 +242,36 @@ class RoundOneStrictnessTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class PerModelComplianceTests(unittest.TestCase):
+    """Session-wide compliance hides the seat you can actually act on.
+
+    A real three-lab run scored 69% and every failure belonged to one model;
+    the other two were perfect. Averaged, that reads as a council-wide
+    struggle with the format. Broken out, it reads as one replaceable seat.
+    """
+
+    def test_failures_are_attributed_to_the_model_that_caused_them(self):
+        vague = json.dumps(
+            {"objections": [{"sheet": "A", "claim_n": 1, "argument": "Agreed"}]}
+        )
+        script = default_script()
+        script["model-1"] = [script["model-1"][0], vague, vague, script["model-1"][2]]
+        result, _ = run(script, "per-model")
+
+        by_model = result.compliance_by_model
+        self.assertGreater(by_model["model-1"]["failures"], 0)
+        self.assertEqual(by_model["model-2"]["failures"], 0)
+        self.assertEqual(by_model["model-3"]["failures"], 0)
+        self.assertEqual(result.worst_complier, "model-1")
+
+    def test_a_clean_session_names_no_worst_complier(self):
+        result, _ = run(default_script(), "per-model-clean")
+        self.assertIsNone(result.worst_complier)
+        for entry in result.compliance_by_model.values():
+            self.assertEqual(entry["failures"], 0)
+
+    def test_it_is_serialisable_in_stats(self):
+        result, _ = run(default_script(), "per-model-stats")
+        json.dumps(result.stats())

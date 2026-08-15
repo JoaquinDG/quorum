@@ -51,6 +51,7 @@ from .prompts import (
     build_revision_prompt,
     build_revision_repair_prompt,
     build_sheet_prompt,
+    build_sheet_repair_prompt,
     build_verdict_prompt,
     build_verdict_repair_prompt,
     render_sheet,
@@ -87,6 +88,13 @@ class SessionConfig:
     the session closes without a verdict rather than presenting one model's
     opinion as a council's."""
 
+    sheet_repairs: int = 1
+    """Re-prompts allowed for a round-1 sheet that would not parse.
+
+    Round 1 absences are the expensive ones — the student is gone from every
+    later round, not just this one — and it was the last round with no budget
+    at all."""
+
     critique_repairs: int = 1
     """Re-prompts allowed for a non-compliant critique. One: enough to rescue
     a good critic that missed a field, too few to let a model that cannot
@@ -102,19 +110,26 @@ class SessionConfig:
 
     verdict_repairs: int = 1
 
-    max_tokens: int = 4096
+    max_tokens: int = 16384
     """Completion budget per call.
 
-    Raised from 2048 after measuring real usage. A round-1 sheet from a
-    reasoning model cost 756 visible tokens, and a ten-objection critique runs
-    to roughly twice that — before the reasoning tokens that such models spend
-    *first*, invisibly, out of the same budget. A budget that is merely tight
-    therefore comes back completely empty rather than partially written.
+    Set by measurement, twice. 2048 was the guess; a round-1 sheet from a
+    reasoning model cost 756 visible tokens, so 4096 looked generous. It was
+    not: on a three-lab council the students raised 25 objections, and both a
+    revision answering them and the arbiter reading the whole transcript blew
+    straight through 4096. The session ended with no verdict.
 
-    Raising it is close to free: this is a cap, not a reservation, and you are
-    billed for tokens produced. Truncation now raises `ProviderTruncated`
-    rather than surfacing as an unparseable sheet, so the failure is at least
-    honest — but not hitting it is better than reporting it well."""
+    The load is not uniform across rounds and it grows with the *council's*
+    output, not the question. An arbiter reads every sheet, every objection and
+    every revision, then writes a synthesis plus a minority report holding one
+    entry per surviving dissent — so its budget scales with how productive the
+    debate was, which is exactly backwards from a fixed cap tuned on round 1.
+
+    16384 is chosen because every seat tested accepts 32768, and because this
+    is a cap rather than a reservation: you are billed for tokens produced, so
+    headroom costs nothing until it is used. A per-round budget would be
+    tighter and is not worth the configuration surface — the arbiter is the
+    only round that needs the room, and it is one call."""
 
     skeptic_seat: int | None = None
     """Seat instructed to attack the most confident sheet regardless of whether
@@ -272,6 +287,45 @@ class SessionResult:
         return (self.parse_attempts - self.parse_failures) / self.parse_attempts
 
     @property
+    def compliance_by_model(self) -> dict[str, dict[str, int]]:
+        """Schema failures per model, from the trace.
+
+        The session-wide rate hides the thing you can act on. A real three-lab
+        run came in at 69% compliance, and every single failure belonged to one
+        seat — the other two were perfect. Averaged together that reads as "the
+        council struggles with the format"; broken out it reads as "one model
+        cannot emit strict JSON reliably", which is a seat you can replace.
+
+        It also prices the schema honestly. A cheap model that needs a repair
+        on half its turns is not cheap, and this is where that shows up.
+        """
+        stats: dict[str, dict[str, int]] = {}
+        counted = {
+            tr.SHEET_SUBMITTED, tr.SHEET_REVISED, tr.VERDICT_DELIVERED,
+            tr.ATTEMPT_DISCARDED, tr.STUDENT_ABSENT, tr.ARBITER_ABSENT,
+        }
+        failed = {tr.ATTEMPT_DISCARDED, tr.STUDENT_ABSENT, tr.ARBITER_ABSENT}
+        for event in self.events:
+            if event.event_type not in counted:
+                continue
+            model = event.payload.get("model_id")
+            if not model:
+                continue
+            entry = stats.setdefault(model, {"attempts": 0, "failures": 0})
+            entry["attempts"] += 1
+            if event.event_type in failed:
+                entry["failures"] += 1
+        return stats
+
+    @property
+    def worst_complier(self) -> str | None:
+        """The seat costing the most repairs, or None if everyone complied."""
+        ranked = [
+            (v["failures"], m) for m, v in self.compliance_by_model.items() if v["failures"]
+        ]
+        return max(ranked)[1] if ranked else None
+
+    @property
     def discarded_calls(self) -> tuple[tr.TraceEvent, ...]:
         """Model calls that were paid for and thrown away (re-prompts)."""
         return tuple(e for e in self.events if e.event_type == tr.ATTEMPT_DISCARDED)
@@ -347,6 +401,8 @@ class SessionResult:
             "disagreement_label": self.disagreement.label if self.disagreement else None,
             "compliance_rate": round(self.compliance_rate, 4),
             "provider_errors": self.provider_errors,
+            "compliance_by_model": self.compliance_by_model,
+            "worst_complier": self.worst_complier,
             "discarded_calls": len(self.discarded_calls),
             "repair_cost_est": self.repair_cost_est,
             "tokens_in": self.tokens_in,
@@ -564,13 +620,37 @@ class Session:
                 )
                 continue
             counters["attempts"] += 1
-            try:
-                sheet = parse_sheet(completion.text, actor=actor)
-            except SheetError as exc:
-                counters["failures"] += 1
+            sheet = None
+            last_error = ""
+            last_completion = completion
+            for attempt in range(self.config.sheet_repairs + 1):
+                if attempt:
+                    try:
+                        completion = self._call(seat, attempt_prompt)
+                    except ProviderError as exc:
+                        counters["provider_errors"] += 1
+                        last_error = str(exc)
+                        break
+                    counters["attempts"] += 1
+                    last_completion = completion
+                try:
+                    sheet = parse_sheet(completion.text, actor=actor)
+                    break
+                except SheetError as exc:
+                    counters["failures"] += 1
+                    last_error = str(exc)
+                    sheet = None
+                    if attempt < self.config.sheet_repairs:
+                        self._discarded(
+                            session_id, ROUND_EXAM, actor, seat_no, seat,
+                            completion, "malformed_sheet", last_error,
+                        )
+                        attempt_prompt = build_sheet_repair_prompt(prompt, last_error)
+
+            if sheet is None:
                 self._absent(
-                    session_id, ROUND_EXAM, seat_no, actor, "malformed_sheet", str(exc),
-                    absences, records, completion=completion, seat=seat,
+                    session_id, ROUND_EXAM, seat_no, actor, "malformed_sheet", last_error,
+                    absences, records, completion=last_completion, seat=seat,
                 )
                 continue
 

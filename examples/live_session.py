@@ -52,6 +52,17 @@ PRICES = {
     "haiku": ModelCost(1.0, 5.0),
     "fable": ModelCost(3.0, 15.0),
     "openai": ModelCost(2.5, 10.0),
+    "deepseek": ModelCost(0.28, 0.42),
+}
+
+
+# Every one of these speaks the OpenAI chat-completions shape, so the adapter
+# shipped in the package covers all of them with a base URL and an env var.
+VENDORS = {
+    "openai": ("https://api.openai.com", "OPENAI_API_KEY"),
+    "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
+    "moonshot": ("https://api.moonshot.cn/v1", "MOONSHOT_API_KEY"),
+    "together": ("https://api.together.xyz", "TOGETHER_API_KEY"),
 }
 
 
@@ -77,18 +88,38 @@ def anthropic_council() -> Council:
 
 
 def mixed_council() -> Council:
-    """Two labs across three seats, with the strongest model arbitrating.
+    """Two labs across three seats. Better than one, still short of the goal.
 
-    Two is better than one and still short of the goal. A third family —
-    Kimi, DeepSeek, Gemini, anything OpenAI-compatible — goes in by setting
-    QUORUM_MODEL_3 and QUORUM_PROVIDER_3 plus its base URL and env var below.
+    The third seat stays Anthropic unless DEEPSEEK_API_KEY is present, in which
+    case `three_lab_council` is what you actually want — see below.
     """
-    third_provider = os.environ.get("QUORUM_PROVIDER_3", "anthropic")
     return Council(
         students=(
             Seat(model("QUORUM_MODEL_1", "claude-sonnet-5"), "anthropic", PRICES["sonnet"]),
             Seat(model("QUORUM_MODEL_2", "gpt-5.1"), "openai", PRICES["openai"]),
-            Seat(model("QUORUM_MODEL_3", "claude-haiku-4-5-20251001"), third_provider, PRICES["haiku"]),
+            Seat(model("QUORUM_MODEL_3", "claude-haiku-4-5-20251001"), "anthropic", PRICES["haiku"]),
+        ),
+        arbiter=Seat(model("QUORUM_ARBITER", "claude-opus-5"), "anthropic", PRICES["opus"]),
+    )
+
+
+def three_lab_council() -> Council:
+    """One student per lab. This is what the protocol is actually for.
+
+    Diversity of priors is the product, and it comes from distinct model
+    *families* — different training corpora, different alignment, genuinely
+    uncorrelated blind spots. A Chinese lab is the most behaviourally distant
+    option reachable from a Western stack, which is the axis that matters here
+    rather than raw capability.
+
+    It also happens to be the cheap seat, so the council that means the most
+    costs the least — which is not usually how this goes.
+    """
+    return Council(
+        students=(
+            Seat(model("QUORUM_MODEL_1", "claude-sonnet-5"), "anthropic", PRICES["sonnet"]),
+            Seat(model("QUORUM_MODEL_2", "gpt-5.1"), "openai", PRICES["openai"]),
+            Seat(model("QUORUM_MODEL_3", "deepseek-chat"), "deepseek", PRICES["deepseek"]),
         ),
         arbiter=Seat(model("QUORUM_ARBITER", "claude-opus-5"), "anthropic", PRICES["opus"]),
     )
@@ -108,11 +139,12 @@ def build_pool(council: Council) -> ProviderPool:
             providers.append(AnthropicProvider())
             continue
         upper = name.upper().replace("-", "_")
+        base, key = VENDORS.get(name, ("https://api.openai.com", "OPENAI_API_KEY"))
         providers.append(
             OpenAICompatibleProvider(
                 name=name,
-                base_url=os.environ.get(f"QUORUM_BASE_URL_{upper}", "https://api.openai.com"),
-                env_var=os.environ.get(f"QUORUM_KEY_{upper}", "OPENAI_API_KEY"),
+                base_url=os.environ.get(f"QUORUM_BASE_URL_{upper}", base),
+                env_var=os.environ.get(f"QUORUM_KEY_{upper}", key),
             )
         )
     return ProviderPool(providers)
@@ -160,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     ))
     parser.add_argument("--mixed", action="store_true",
                         help="two-lab council (needs OPENAI_API_KEY too)")
+    parser.add_argument("--three-lab", action="store_true",
+                        help="one student per lab (needs DEEPSEEK_API_KEY too)")
     parser.add_argument("--check", action="store_true",
                         help="verify keys and model ids, then stop")
     parser.add_argument("--type", default="architecture")
@@ -174,11 +208,20 @@ def main(argv: list[str] | None = None) -> int:
               "Keys are read from the environment only. Nothing in this repo stores "
               "one, and no key is ever written to a trace or a report.", file=sys.stderr)
         return 2
-    if args.mixed and not os.environ.get("OPENAI_API_KEY"):
-        print("--mixed needs OPENAI_API_KEY as well.", file=sys.stderr)
+    if (args.mixed or args.three_lab) and not os.environ.get("OPENAI_API_KEY"):
+        print("this council needs OPENAI_API_KEY as well.", file=sys.stderr)
+        return 2
+    if args.three_lab and not os.environ.get("DEEPSEEK_API_KEY"):
+        print("--three-lab needs DEEPSEEK_API_KEY as well.\n\n"
+              "  export DEEPSEEK_API_KEY=...", file=sys.stderr)
         return 2
 
-    council = mixed_council() if args.mixed else anthropic_council()
+    if args.three_lab:
+        council = three_lab_council()
+    elif args.mixed:
+        council = mixed_council()
+    else:
+        council = anthropic_council()
     pool = build_pool(council)
 
     if args.check:
@@ -221,6 +264,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  position changes:     {moved} of {stats['council_size']}"
           f"  ({stats['position_change_rate']:.0%})")
     print(f"  claim compliance:     {stats['compliance_rate']:.0%}")
+    for m, v in sorted(result.compliance_by_model.items(),
+                       key=lambda kv: -kv[1]["failures"]):
+        if v["failures"]:
+            print(f"      {m}: {v['failures']} of {v['attempts']} turns needed a repair")
     print(f"  re-prompts:           {stats['discarded_calls']}")
     for absence in result.absences:
         print(f"  ABSENT round {absence.round} seat {absence.seat}: "

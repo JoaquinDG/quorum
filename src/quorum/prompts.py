@@ -174,6 +174,32 @@ def leading_sheet_label(blinded: dict[str, AnswerSheet]) -> str:
     return min(blinded.items(), key=lambda kv: (-kv[1].confidence, kv[0]))[0]
 
 
+SHEET_REPAIR_TEMPLATE = """Your answer sheet was rejected: {reason}
+
+Send the same sheet again, corrected. Keep your position and your reasoning —
+this is a formatting problem, not a disagreement with what you said.
+
+{original}
+"""
+
+
+def build_sheet_repair_prompt(original: str, reason: str) -> str:
+    """One re-prompt for a round-1 sheet that would not parse.
+
+    Round 1 was the last round with no repair budget, and it is the one where
+    an absence costs most: a student that fails here is gone from every
+    subsequent round, so the council shrinks for the whole session rather than
+    for one step.
+
+    It earned the budget the same way round 3 did. A model emitted a complete,
+    well-reasoned sheet with one missing closing brace — six opened, five
+    closed — and was excluded from the entire deliberation for it. Rejecting
+    the sheet is right, because silently repairing malformed JSON risks
+    changing what it says. Rejecting the *participant* over a brace is not.
+    """
+    return SHEET_REPAIR_TEMPLATE.format(reason=reason, original=original)
+
+
 CRITIQUE_REPAIR_TEMPLATE = """Your critique was rejected: {reason}
 
 Try once more. Every objection must name a sheet, name a claim number that

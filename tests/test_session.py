@@ -163,8 +163,13 @@ class MalformedSheetTests(unittest.TestCase):
         self.assertIn("malformed_sheet", reasons)
 
     def test_malformed_output_is_never_silently_coerced(self):
+        # Two prose replies: one for the first attempt, one for the repair
+        # round 1 now offers. A model that fails twice is genuinely absent.
         script = default_script()
-        script["model-2"] = ["I would rather answer in prose."] + script["model-2"][1:]
+        script["model-2"] = [
+            "I would rather answer in prose.",
+            "Still prose, sorry.",
+        ] + script["model-2"][1:]
         script["model-1"][1] = critique_json(("A",))
         script["model-3"][1] = critique_json(("A",))
         council, providers = scripted_council(script)
@@ -174,9 +179,32 @@ class MalformedSheetTests(unittest.TestCase):
         self.assertIsNone(result.student(2).initial)
         self.assertIsNone(result.student(2).final)
         # The raw text survives in the trace: "six claims" and "an apology"
-        # are different bugs.
+        # are different bugs. The discarded attempt keeps the first reply and
+        # the absence keeps the last, so both are recoverable.
+        discarded = [e for e in result.events if e.event_type == tr.ATTEMPT_DISCARDED]
         absent = [e for e in result.events if e.event_type == tr.STUDENT_ABSENT]
-        self.assertIn("prose", absent[0].payload["raw"])
+        self.assertIn("rather answer in prose", discarded[0].payload["raw"])
+        self.assertIn("Still prose", absent[0].payload["raw"])
+
+    def test_a_repaired_sheet_keeps_the_student_in_the_session(self):
+        """Round 1 absences are the expensive ones: the student is gone from
+        every later round. A model emitted a complete sheet with one missing
+        brace and was excluded from a whole real session for it."""
+        script = default_script()
+        good = script["model-2"][0]
+        script["model-2"] = [good[:-1]] + script["model-2"]  # drop the final brace
+        council, providers = scripted_council(script)
+
+        result = Session(council, providers).run(TASK, session_id="s-brace")
+
+        self.assertIsNotNone(result.student(2).initial)
+        self.assertFalse(result.reduced_council)
+        self.assertEqual(result.student(2).absent_rounds, ())
+        discarded = [
+            e for e in result.events
+            if e.event_type == tr.ATTEMPT_DISCARDED and e.payload["seat"] == 2
+        ]
+        self.assertEqual(len(discarded), 1)
 
     def test_provider_outage_marks_the_student_absent(self):
         script = default_script()

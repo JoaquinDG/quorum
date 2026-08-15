@@ -7,7 +7,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 318 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 322 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -446,6 +446,27 @@ Claude Sonnet 5, GPT-5.1 and Claude Haiku, arbitrated by Claude Opus 5. Four rou
 
 Every one of those cost a real re-prompt, which is why compliance and cost are the same finding wearing two hats.
 
+### Three labs, and a model that cannot hold the format
+
+Adding DeepSeek made it one student per lab — Claude Sonnet 5, GPT-5.1, DeepSeek, arbitrated by Opus 5. Trace at `tests/fixtures/real_session/live_three_lab.jsonl`.
+
+It found two more things and one of them is uncomfortable.
+
+**Round 1 was the last round with no repair budget, and it is the one where an absence costs most.** DeepSeek's opening sheet had six opening braces and five closing ones — one missing character in an otherwise complete, well-reasoned sheet — and it was excluded from *every subsequent round*. The council ran at two students. Rejecting the sheet is right, because silently repairing malformed JSON risks changing what it says; rejecting the participant over a brace is not. `SessionConfig.sheet_repairs` now exists, and on the re-run DeepSeek stayed in.
+
+**Compliance is not a council property.** The session scored 69% against a ≥90% target, which reads as "the council struggles with the format". Broken out per model it reads as something else entirely:
+
+| model | schema failures |
+|---|---|
+| `deepseek-chat` | **3** (a malformed sheet, then two malformed critiques) |
+| `claude-opus-5` | 1 (arbiter) |
+| `claude-sonnet-5` | 0 |
+| `gpt-5.1` | 0 |
+
+Every student failure belonged to one seat. `SessionResult.compliance_by_model` and `worst_complier` now expose that, because the averaged number hides the only thing you can act on — and because **a cheap model that needs a repair on half its turns is not cheap**. Repairs were 38% of that session's bill.
+
+There is a real tension here worth naming rather than resolving: the seat with the most distinct priors is also the seat that struggles most with the schema. The protocol's value and its cost point at the same model.
+
 ### One claim of mine got weaker
 
 I attributed the three Claude models' unanimity to single-lab correlated priors. A **GPT-5.1** sheet then parsed clean on the first try — 5 claims, no compliance warnings — and reached *the same conclusion*: refactor in place.
@@ -480,7 +501,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           318 tests; protocol invariants, review regressions, real-session fixtures
+tests/           322 tests; protocol invariants, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility
