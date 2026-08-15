@@ -423,6 +423,29 @@ Wiring up a real key found two more, before a single session ran.
 
 Measured usage then set the default: a real round-1 sheet cost **756 visible tokens**, and critiques run larger, so `max_tokens` moved from 2048 to 4096. That is close to free — the budget is a cap, not a reservation.
 
+### The first complete session, on a mixed-lab council
+
+Claude Sonnet 5, GPT-5.1 and Claude Haiku, arbitrated by Claude Opus 5. Four rounds, real keys, ~13 calls. The trace is committed at `tests/fixtures/real_session/live_mixed_lab.jsonl`.
+
+**Two protocol targets were met. Two were missed, and the misses are the useful part.**
+
+| | result | target |
+|---|---|---|
+| Position-change rate | **33%** (1 of 3) | 15–60% — met |
+| Dissent preserved | **13 minority items** | ≥30% of sessions — met, emphatically |
+| Claim compliance | **77%** | ≥90% — **missed** |
+| Cost multiple | **23.7×** | ≤8× — **missed by ~3×** |
+
+**The cost guardrail does not survive contact.** $0.51 against a $0.021 single-answer baseline. Round 4 alone was 63% of the bill, because the arbiter reads the entire transcript. Repairs were another 42%. Even with every repair eliminated it lands near 14× — still comfortably over. The ≤8× figure in the spec was an estimate; the measurement says otherwise, and the measurement wins.
+
+**All three compliance failures were design gaps, not model failures.**
+
+1. *GPT-5.1 tried to object to an `assumptions` entry rather than a numbered claim.* The critique prompt literally invited this — "if you think a claim is correct, attack its weakest supporting assumption instead" — and the schema has no address for an assumption. **My prompt asked for something my parser rejects.** Now the prompt routes assumption attacks through the claim number they support.
+2. *GPT-5.1 submitted seven claims on revision.* Opus had done the same thing at six. Two labs, same failure, same cause: answering objections adds material and the cap forbids growth. The repair budget added earlier caught it.
+3. *The arbiter attributed one dissent to "Student 1 and Student 2" jointly.* The schema demands exactly one source. Now the prompt says to file it twice instead.
+
+Every one of those cost a real re-prompt, which is why compliance and cost are the same finding wearing two hats.
+
 ### One claim of mine got weaker
 
 I attributed the three Claude models' unanimity to single-lab correlated priors. A **GPT-5.1** sheet then parsed clean on the first try — 5 claims, no compliance warnings — and reached *the same conclusion*: refactor in place.

@@ -119,13 +119,18 @@ def build_pool(council: Council) -> ProviderPool:
 
 
 def preflight(council: Council, pool: ProviderPool) -> int:
-    """One tiny call per seat. Cheap insurance against a stale model id."""
-    print("preflight — one 1-token call per seat\n")
+    """One tiny call per seat. Cheap insurance against a stale model id.
+
+    The 64-token budget is deliberately loose. Reasoning models spend the
+    budget on reasoning before emitting anything, so a preflight tight enough
+    to be elegant fails on healthy seats — which is worse than useless, since
+    the whole point is to tell a real problem from a configured one."""
+    print("preflight — one small call per seat\n")
     failures = 0
     for seat in council.seats():
         role = "arbiter" if seat is council.arbiter else "student"
         try:
-            pool.get(seat.provider).complete(seat.model_id, "Reply with: ok", 5)
+            pool.get(seat.provider).complete(seat.model_id, "Reply with: ok", 64)
             print(f"  OK        {role:<8} {seat.model_id}  ({seat.provider})")
         except ProviderConfigError as exc:
             failures += 1

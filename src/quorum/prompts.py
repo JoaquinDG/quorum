@@ -119,7 +119,9 @@ specific claim number it attacks, and must say why that claim is wrong,
 unsupported, or load-bearing in a way its author has not noticed.
 
 You may not register agreement. There is no field for it. If you think a claim
-is correct, attack its weakest supporting assumption instead.
+is correct, attack the assumption it rests on — but file that objection against
+the claim number the assumption supports, because claim numbers are the only
+address this format has.
 
 {_JSON_RULE}
 
@@ -313,9 +315,10 @@ Produce:
   reported disagreement.
 - "minority_report": every claim or objection that did NOT make your final
   answer but that a careful reader would want to know was raised. Attribute
-  each to the participant label it came from and preserve its substance —
-  do not soften it into agreement. An empty list is legitimate only if
-  nothing was genuinely left out.
+  each to exactly ONE participant label — if two participants raised the same
+  point, file it twice rather than naming them jointly. Preserve its substance;
+  do not soften it into agreement. An empty list is legitimate only if nothing
+  was genuinely left out.
 
 {_JSON_RULE}
 

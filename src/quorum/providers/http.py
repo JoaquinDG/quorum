@@ -47,6 +47,24 @@ from .base import (
 
 _RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
 
+_TRUNCATION_MARKERS = (
+    "max_tokens or model output limit was reached",
+    "could not finish the message",
+    "max_completion_tokens",
+)
+
+
+def _looks_truncated(detail: str) -> bool:
+    """Does this error body describe an exhausted completion budget?
+
+    String matching on a vendor message, which is exactly as durable as it
+    sounds — but the alternative is reporting a budget problem as a malformed
+    request, which sends the reader to debug the wrong thing entirely. When
+    the wording drifts, the failure mode is the old behaviour rather than a
+    new one."""
+    lowered = detail.lower()
+    return any(marker in lowered for marker in _TRUNCATION_MARKERS)
+
 
 class _HTTPProviderBase:
     """Shared transport: retries, backoff, and error translation."""
@@ -108,6 +126,15 @@ class _HTTPProviderBase:
                     last = ProviderRateLimited(message, provider=self.name, model_id=model_id)
                 elif e.code in _RETRYABLE_STATUS:
                     last = ProviderUnavailable(message, provider=self.name, model_id=model_id)
+                elif e.code == 400 and _looks_truncated(detail):
+                    # Some vendors report an exhausted completion budget as a
+                    # 400 rather than a `finish_reason`, which would otherwise
+                    # land in the generic bucket below and read as "your
+                    # request is malformed". It isn't: the request was fine and
+                    # the budget was too small.
+                    raise ProviderTruncated(
+                        message, provider=self.name, model_id=model_id
+                    ) from None
                 else:
                     # 400, 404, 422: the request is wrong. Retrying re-sends
                     # the same bad request and hides a real bug.
