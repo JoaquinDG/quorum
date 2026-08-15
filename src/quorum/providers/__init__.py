@@ -11,12 +11,14 @@ from .base import (
     ProviderPool,
     ProviderRateLimited,
     ProviderTimeout,
+    ProviderTruncated,
     ProviderUnavailable,
     ScriptedProvider,
     mock_pool,
 )
 
 __all__ = [
+    "ProviderTruncated",
     "AnthropicProvider",
     "OpenAICompatibleProvider",
     "Completion",

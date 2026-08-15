@@ -7,7 +7,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 314 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 318 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -413,6 +413,22 @@ The session scored **67% — outside the band**, reported as found. One hypothes
 
 To be exact about what this was: one lab, three tiers, one question, orchestrated by hand. Not a benchmark, not a blinding measurement, and no substitute for either. Everything is kept in `tests/fixtures/real_session/`, with a regression test per finding.
 
+### Then the adapters met a live API
+
+Wiring up a real key found two more, before a single session ran.
+
+**A fabricated model id.** The runner's arbiter seat was `claude-opus-4-5-arbiter` — not a model. I had invented the suffix to satisfy the no-duplicate-models rule, and it would have 404'd on the first arbiter call, forty calls into a session. There is now a `--check` preflight that spends one 1-token call per seat and distinguishes the three failures that look identical from outside: missing key, wrong model id, real outage. Every seat is overridable by environment variable, because vendors rename models faster than an example script gets updated.
+
+**Truncation looked exactly like a malformed sheet.** Reasoning models spend the completion budget on reasoning *first*, invisibly. Given 16 tokens, a live model spent all 16 reasoning and returned `finish_reason: length` with empty content. The adapter handed back `text=""`, the parser called it an empty response, and the session would have recorded a healthy model as producing a malformed sheet — blaming the model for our configuration, and corrupting the claim-compliance metric, which exists precisely to measure whether models can follow the format. Now raises `ProviderTruncated`, which says which budget was hit and how much went to reasoning.
+
+Measured usage then set the default: a real round-1 sheet cost **756 visible tokens**, and critiques run larger, so `max_tokens` moved from 2048 to 4096. That is close to free — the budget is a cap, not a reservation.
+
+### One claim of mine got weaker
+
+I attributed the three Claude models' unanimity to single-lab correlated priors. A **GPT-5.1** sheet then parsed clean on the first try — 5 claims, no compliance warnings — and reached *the same conclusion*: refactor in place.
+
+Four models, two labs, one answer. That does not refute correlated priors (all four are trained on overlapping text), but it does weaken the specific claim that the agreement was a Claude-family artifact. The plainer reading is that this question has a defensible answer most capable models find. The single-lab warning stands on its argument; this particular session is no longer evidence for it.
+
 ## Known limitations
 
 - **The blinding is structurally sound and empirically unmeasured.** The probe exists and runs; it has never been pointed at a real model. Until it is, "blind" here means "structurally blinded", not "measured to be blind".
@@ -441,7 +457,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           314 tests; protocol invariants, review regressions, real-session fixtures
+tests/           318 tests; protocol invariants, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility

@@ -41,6 +41,7 @@ from .base import (
     ProviderError,
     ProviderRateLimited,
     ProviderTimeout,
+    ProviderTruncated,
     ProviderUnavailable,
 )
 
@@ -200,6 +201,13 @@ class AnthropicProvider(_HTTPProviderBase):
             if block.get("type") == "text"
         )
         usage = data.get("usage", {})
+        if data.get("stop_reason") == "max_tokens":
+            raise ProviderTruncated(
+                f"{self.name}: {model_id} hit the {max_tokens}-token completion "
+                f"budget; raise SessionConfig.max_tokens",
+                provider=self.name,
+                model_id=model_id,
+            )
         return Completion(
             text=text,
             model_id=model_id,
@@ -264,6 +272,17 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
         choices = data.get("choices") or [{}]
         text = (choices[0].get("message") or {}).get("content") or ""
         usage = data.get("usage", {})
+        if choices[0].get("finish_reason") == "length":
+            reasoning = (usage.get("completion_tokens_details") or {}).get(
+                "reasoning_tokens", 0
+            )
+            raise ProviderTruncated(
+                f"{self.name}: {model_id} hit the {max_tokens}-token completion budget"
+                + (f", spending {reasoning} of it on reasoning" if reasoning else "")
+                + "; raise SessionConfig.max_tokens",
+                provider=self.name,
+                model_id=model_id,
+            )
         return Completion(
             text=text,
             model_id=model_id,

@@ -15,6 +15,8 @@ import unittest.mock as mock
 
 from quorum import (
     AnthropicProvider,
+    ProviderTruncated,
+    SessionConfig,
     Council,
     ModelCost,
     OpenAICompatibleProvider,
@@ -176,3 +178,54 @@ class SingleLabTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TruncationTests(unittest.TestCase):
+    """Truncation must not masquerade as a schema failure.
+
+    Found against a live reasoning model: given a budget of 16 tokens it spent
+    all 16 reasoning and returned empty content with `finish_reason: length`.
+    The adapter handed back `text=""`, the parser called it an empty response,
+    and the session would have recorded a healthy model as producing a
+    malformed sheet — blaming the model for our configuration and corrupting
+    the claim-compliance metric on the way past.
+    """
+
+    class _FakeProvider(OpenAICompatibleProvider):
+        def __init__(self, payload, **kw):
+            super().__init__(api_key="k", **kw)
+            self._payload = payload
+
+        def _request(self, url, body, headers, model_id):
+            return self._payload
+
+    def test_a_length_finish_raises_rather_than_returning_empty_text(self):
+        provider = self._FakeProvider({
+            "choices": [{"finish_reason": "length", "message": {"content": ""}}],
+            "usage": {"completion_tokens": 16,
+                      "completion_tokens_details": {"reasoning_tokens": 16}},
+        })
+        with self.assertRaises(ProviderTruncated) as ctx:
+            provider.complete("gpt-x", "hello", 16)
+        message = str(ctx.exception)
+        self.assertIn("16-token completion budget", message)
+        self.assertIn("reasoning", message)
+        self.assertIn("max_tokens", message)
+
+    def test_a_normal_finish_still_returns_the_text(self):
+        provider = self._FakeProvider({
+            "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 2},
+        })
+        self.assertEqual(provider.complete("gpt-x", "hello", 100).text, "ok")
+
+    def test_truncation_is_distinguishable_from_every_other_failure(self):
+        for other in (ProviderConfigError, ProviderRateLimited, ProviderUnavailable):
+            self.assertFalse(issubclass(ProviderTruncated, other))
+            self.assertFalse(issubclass(other, ProviderTruncated))
+        self.assertTrue(issubclass(ProviderTruncated, ProviderError))
+
+    def test_the_default_budget_clears_measured_real_usage(self):
+        """A real reasoning-model sheet cost 756 visible tokens, and critiques
+        run larger. The default must leave room for that plus reasoning."""
+        self.assertGreaterEqual(SessionConfig().max_tokens, 4096)

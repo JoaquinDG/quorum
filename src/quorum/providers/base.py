@@ -61,6 +61,23 @@ class ProviderConfigError(ProviderError):
     """Missing key or bad configuration. Not retryable."""
 
 
+class ProviderTruncated(ProviderError):
+    """The model was cut off before it finished, so the reply is unusable.
+
+    Distinguished from a malformed reply because the causes and the fixes are
+    opposite. A malformed sheet means the model ignored the schema and the
+    honest response is to mark it absent. A truncated one means *we* set the
+    budget too low, and recording that as a schema failure would blame a
+    healthy model for a configuration mistake — and quietly corrupt the
+    claim-compliance metric, which exists to measure whether models can follow
+    the format.
+
+    Reasoning models make this common rather than exotic: they spend the
+    completion budget on reasoning before emitting a single visible token, so
+    a budget that is merely tight comes back completely empty rather than
+    partially written."""
+
+
 @dataclass(frozen=True)
 class Completion:
     text: str

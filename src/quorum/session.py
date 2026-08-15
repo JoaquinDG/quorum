@@ -101,7 +101,20 @@ class SessionConfig:
     schema to satisfy had the smallest budget for missing it."""
 
     verdict_repairs: int = 1
-    max_tokens: int = 2048
+
+    max_tokens: int = 4096
+    """Completion budget per call.
+
+    Raised from 2048 after measuring real usage. A round-1 sheet from a
+    reasoning model cost 756 visible tokens, and a ten-objection critique runs
+    to roughly twice that — before the reasoning tokens that such models spend
+    *first*, invisibly, out of the same budget. A budget that is merely tight
+    therefore comes back completely empty rather than partially written.
+
+    Raising it is close to free: this is a cap, not a reservation, and you are
+    billed for tokens produced. Truncation now raises `ProviderTruncated`
+    rather than surfacing as an unparseable sheet, so the failure is at least
+    honest — but not hitting it is better than reporting it well."""
 
     skeptic_seat: int | None = None
     """Seat instructed to attack the most confident sheet regardless of whether
