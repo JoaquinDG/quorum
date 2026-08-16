@@ -383,8 +383,46 @@ class BenchmarkReport:
             "wins_neutral_criteria": self.wins(neutral_only=True),
         }
 
+    @property
+    def incomplete_arms(self) -> list[tuple[str, str]]:
+        """(task, arm) pairs that produced no scored answer."""
+        return [
+            (o.task.key, arm)
+            for o in self.outcomes
+            for arm in ARMS
+            if o.arms.get(arm) is None or o.arms[arm].error or not o.arms[arm].scores
+        ]
+
+    @property
+    def comparable(self) -> bool:
+        """Did every arm answer every task?
+
+        A benchmark with a missing arm is not a close result, it is not a
+        result. This was learned the expensive way: one provider ran out of
+        credit mid-run, the single-model and self-critique arms produced
+        nothing at all, and the council arm — which degraded to two students
+        and carried on, exactly as fail-closed intends — scored 0.87 against
+        two zeros. The harness printed "wins: quorum 2" above the failure
+        notice, which is the most flattering possible rendering of a run where
+        the opposition never turned up.
+        """
+        return not self.incomplete_arms
+
     def render_markdown(self) -> str:
         out: list[str] = ["# Quorum benchmark", ""]
+        if not self.comparable:
+            missing = self.incomplete_arms
+            arms = sorted({arm for _, arm in missing})
+            out += [
+                "> **NOT A RESULT — arms are missing.**",
+                ">",
+                f"> {len(missing)} task/arm pair(s) produced no scored answer, "
+                f"affecting: {', '.join('`' + a + '`' for a in arms)}. Any score "
+                "below is a comparison against an opponent that did not answer, "
+                "and must not be read as a finding. Common cause: a provider "
+                "out of credit, or a model id that has been retired.",
+                "",
+            ]
         if self.is_mock:
             out += [
                 "> **THIS IS A MOCK RUN. THESE ARE NOT RESULTS.**",

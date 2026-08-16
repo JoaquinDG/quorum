@@ -146,6 +146,16 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     print()
+    # Report a broken run BEFORE the leaderboard. Printing scores first and the
+    # failure afterwards is how a run where the opposition never answered gets
+    # skimmed as a clean sweep.
+    if not report.comparable:
+        missing = report.incomplete_arms
+        arms = sorted({arm for _, arm in missing})
+        print(f"  NOT A RESULT — {len(missing)} task/arm pair(s) produced no scored")
+        print(f"  answer, affecting: {', '.join(arms)}. The scores below compare")
+        print("  against arms that did not answer. Do not publish them.")
+        print()
     if not args.real:
         print("  MOCK RUN — the numbers below measure the harness, not the models.")
         print()

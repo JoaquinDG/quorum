@@ -352,3 +352,48 @@ class TokenBudgetTests(unittest.TestCase):
         source = inspect.getsource(benchmark)
         self.assertNotIn(", 1024)", source)
         self.assertNotIn(", 1024\n", source)
+
+
+class IncompleteRunTests(unittest.TestCase):
+    """A benchmark with a missing arm is not a close result. It is not a result.
+
+    A real run had one provider out of credit. The single-model and
+    self-critique arms produced nothing; the council arm degraded to two
+    students and carried on, exactly as fail-closed intends, and scored 0.87
+    against two zeros. The harness printed "wins: quorum 2" above the failure
+    notice — the most flattering possible rendering of a walkover.
+    """
+
+    def report_with_a_missing_arm(self):
+        task = tiny_task()
+        return BenchmarkReport(outcomes=[TaskOutcome(task=task, arms={
+            "quorum": ArmResult("quorum", "an answer",
+                                scores={c.key: 0.9 for c in task.criteria}),
+            "single": ArmResult("single", "", error="credit balance too low"),
+            "self_critique": ArmResult("self_critique", "", error="credit balance too low"),
+        })])
+
+    def test_a_missing_arm_makes_the_run_incomparable(self):
+        report = self.report_with_a_missing_arm()
+        self.assertFalse(report.comparable)
+        self.assertEqual(
+            sorted({arm for _, arm in report.incomplete_arms}),
+            ["self_critique", "single"],
+        )
+
+    def test_the_warning_precedes_any_score(self):
+        markdown = self.report_with_a_missing_arm().render_markdown()
+        self.assertIn("NOT A RESULT", markdown)
+        self.assertLess(
+            markdown.index("NOT A RESULT"),
+            markdown.index("Mean rubric score"),
+            "the leaderboard appears before the warning that it is meaningless",
+        )
+
+    def test_a_complete_run_carries_no_such_warning(self):
+        council = demo_council()
+        report = run_benchmark(
+            [tiny_task()], council, bench_pool(council), JUDGE, is_mock=True
+        )
+        self.assertTrue(report.comparable)
+        self.assertNotIn("NOT A RESULT", report.render_markdown())
