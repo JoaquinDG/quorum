@@ -1,13 +1,16 @@
 # Quorum
 
 [![ci](https://github.com/JoaquinDG/quorum/actions/workflows/ci.yml/badge.svg)](https://github.com/JoaquinDG/quorum/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21962850.svg)](https://doi.org/10.5281/zenodo.21962850)
 
 **A council of AI models that answers your question independently, critiques each other claim by claim, and hands you the argument — not just the answer.**
+
+📄 White paper: [Make the LLMs Argue: Quorum, a Deliberation Protocol with Dissent Preserved](https://doi.org/10.5281/zenodo.21962850) (Zenodo, August 2026)
 
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 322 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 336 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -19,7 +22,11 @@ The quickstart writes `reports/quickstart.html` — a single self-contained file
 
 Sibling to [Switchboard](https://github.com/JoaquinDG/switchboard): Switchboard picks the one right model for a task; Quorum convenes several when one isn't enough. Quorum imports the pattern — the `Provider` protocol, the policy object, the JSONL trace philosophy — rather than the code, so the two install independently.
 
-> **Status: every phase built; no results published yet.** The session engine, answer-sheet schema, blinding, replay-complete traces, the Session Report, the convening rule, cost accounting, the skeptic seat, the disagreement score, the deanonymization probe and the benchmark harness all exist and are tested. **What does not exist is a single number produced by a real model.** Every eval here runs against mocks, which proves the harnesses work and proves nothing about the models. The blinding metric and the benchmark table go into this README the day someone runs them with real keys — whatever they say.
+> **Status: built, and partly measured.** The white paper above is a snapshot of **15 August 2026**; the repository has moved since, and where the two differ this section is the one that is current.
+>
+> Measured against real models since the paper: eight live sessions across five labs (`evals/LINEUPS.md`), an adversarial review of the benchmark rubrics that found them tilted (`evals/RUBRIC_REVIEW.md`), a run of the council on its own open design questions (`evals/DOGFOOD.md`), and the deanonymization probe (`evals/PROBE.md`). Those files carry the numbers; this README deliberately does not restate the probe's headline figure, because the paper predates that run and the two should not appear to disagree at a glance.
+>
+> **Still unmeasured: answer quality.** The benchmark harness runs, but only against mocks — there is no result, and this README makes no claim that a council writes better answers than one model. That is the project's central untested proposition and it is stated as such in the paper too.
 
 ## The problem
 
@@ -548,6 +555,34 @@ Quorum's contribution to the shared trace philosophy is the **replay-completenes
 rule**: the record has to be sufficient on its own, and `replay.py` plus a
 report that reads only the file are how that claim is kept honest rather than
 asserted.
+
+## Papers & provenance
+
+| repo | paper |
+| --- | --- |
+| **Quorum**, *deliberate* | [Make the LLMs Argue: Quorum, a Deliberation Protocol with Dissent Preserved](https://doi.org/10.5281/zenodo.21962850) |
+| **[Switchboard](https://github.com/JoaquinDG/switchboard)**, *route* | see that repository's README for its DOI |
+
+Every number in the white paper traces to a command or a committed trace in this repository; see the paper's Appendix B.
+
+**Paths cited by a published paper are frozen.** `tests/fixtures/real_session/live_mixed_lab.jsonl`, `tests/fixtures/real_session/live_three_lab.jsonl` and `evals/LINEUPS.md` are referenced by an immutable DOI record. They may be added to, never renamed or deleted; if one has to move, leave a stub at the old path pointing at the new one.
+
+Where the repository has moved past the paper, this README says so rather than drifting quietly. The paper reports the August 2026 values; the differences are listed in the status note at the top and in the sections below.
+
+## Citation
+
+```bibtex
+@misc{diazgutierrezdequijano2026quorum,
+  author    = {Diaz Gutierrez de Quijano, Joaquin},
+  title     = {Make the LLMs Argue: Quorum, a Deliberation Protocol with Dissent Preserved},
+  year      = {2026},
+  month     = aug,
+  publisher = {Zenodo},
+  version   = {v1},
+  doi       = {10.5281/zenodo.21962850},
+  url       = {https://doi.org/10.5281/zenodo.21962850}
+}
+```
 
 ## Open questions
 
