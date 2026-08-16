@@ -24,6 +24,7 @@ from quorum import (
     ProviderError,
     ProviderPool,
     ProviderRateLimited,
+    ProviderTimeout,
     ProviderUnavailable,
     Seat,
     Session,
@@ -334,3 +335,52 @@ class TransportResilienceTests(unittest.TestCase):
         with m.patch.object(urllib.request, "urlopen",
                             side_effect=[ConnectionResetError(54, "reset"), FakeResponse()]):
             self.assertEqual(provider.complete("gpt-x", "hello", 100).text, "ok")
+
+
+class WallClockDeadlineTests(unittest.TestCase):
+    """A per-read timeout cannot bound a stalled stream.
+
+    A benchmark run held one ESTABLISHED connection for five and a half hours
+    with 2.6 seconds of CPU and no output. The 120-second `timeout=` never
+    fired, because it bounds each individual recv rather than the call, and a
+    server that dribbles bytes resets it on every read.
+    """
+
+    def test_a_call_that_never_returns_raises_rather_than_hanging(self):
+        import time as t
+        import urllib.request
+        from unittest import mock as m
+
+        provider = OpenAICompatibleProvider(api_key="k", deadline=0.3, max_retries=0,
+                                            sleep=lambda _: None)
+
+        def never_returns(*args, **kwargs):
+            t.sleep(30)  # the daemon thread is abandoned, not awaited
+
+        started = t.time()
+        with m.patch.object(urllib.request, "urlopen", side_effect=never_returns):
+            with self.assertRaises(ProviderTimeout) as ctx:
+                provider.complete("gpt-x", "hello", 100)
+        self.assertLess(t.time() - started, 5, "the deadline did not bound the call")
+        self.assertIn("stalled stream", str(ctx.exception))
+
+    def test_the_deadline_does_not_interfere_with_a_normal_response(self):
+        import json as j
+        import urllib.request
+        from unittest import mock as m
+
+        class FakeResponse:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self):
+                return j.dumps({
+                    "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1}}).encode()
+
+        provider = OpenAICompatibleProvider(api_key="k", deadline=10)
+        with m.patch.object(urllib.request, "urlopen", return_value=FakeResponse()):
+            self.assertEqual(provider.complete("gpt-x", "hello", 100).text, "ok")
+
+    def test_the_default_deadline_exceeds_the_per_read_timeout(self):
+        provider = OpenAICompatibleProvider(api_key="k")
+        self.assertGreater(provider.deadline, provider.timeout)

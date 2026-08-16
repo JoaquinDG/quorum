@@ -31,6 +31,7 @@ import json
 import os
 import random
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -75,16 +76,57 @@ class _HTTPProviderBase:
         self,
         *,
         timeout: float = 120.0,
+        deadline: float = 300.0,
         max_retries: int = 2,
         backoff_base: float = 0.5,
         backoff_cap: float = 8.0,
         sleep=time.sleep,
     ) -> None:
         self.timeout = timeout
+        self.deadline = deadline
         self.max_retries = max_retries
         self.backoff_base = backoff_base
         self.backoff_cap = backoff_cap
         self._sleep = sleep  # injectable so tests do not actually wait
+
+    def _urlopen(self, req):
+        """`urlopen` with a wall-clock ceiling the socket layer cannot defeat.
+
+        `timeout=` is a *per-operation* timeout: it bounds each individual
+        recv, not the call. A server that dribbles bytes — or a stream that
+        stalls between chunks — resets it on every read, so the call can hang
+        forever while every single operation looks healthy.
+
+        That is not hypothetical. A benchmark run sat on one ESTABLISHED
+        connection for five and a half hours with 2.6 seconds of CPU and no
+        output, and the 120-second timeout never fired once.
+
+        The request runs on a daemon thread that the caller stops waiting for
+        after `deadline`. The socket is left to the interpreter rather than
+        force-closed, which leaks a thread on a genuine hang — acceptable,
+        because the alternative is a run that never ends and a bill that never
+        stops."""
+        box: dict[str, object] = {}
+
+        def call() -> None:
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    box["data"] = resp.read()
+            except BaseException as exc:  # noqa: BLE001 - re-raised on the caller's thread
+                box["error"] = exc
+
+        worker = threading.Thread(target=call, daemon=True)
+        worker.start()
+        worker.join(self.deadline)
+        if worker.is_alive():
+            raise ProviderTimeout(
+                f"{self.name}: no complete response within {self.deadline}s "
+                "(the per-read timeout cannot catch a stalled stream)",
+                provider=self.name,
+            )
+        if "error" in box:
+            raise box["error"]  # type: ignore[misc]
+        return box["data"]
 
     def _backoff(self, attempt: int, retry_after: float | None) -> float:
         if retry_after is not None:
@@ -107,8 +149,7 @@ class _HTTPProviderBase:
         for attempt in range(self.max_retries + 1):
             req = urllib.request.Request(url, data=body, headers=headers)
             try:
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    return json.loads(resp.read())
+                return json.loads(self._urlopen(req))
             except urllib.error.HTTPError as e:
                 detail = ""
                 try:

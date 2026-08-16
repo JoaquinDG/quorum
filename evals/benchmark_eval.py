@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -97,6 +98,28 @@ def mock_pool_with_judge(council, judge_seat: Seat) -> ProviderPool:
     return ProviderPool(providers)
 
 
+def _progress(total: int):
+    """Print a timestamped line per task, unbuffered.
+
+    A run once hung for five and a half hours on a single socket read with no
+    output at all, because the only progress line was emitted *before* the
+    work and stdout was block-buffered into a redirect. Elapsed time per task
+    is what makes a hang visible in seconds instead of hours — the point is not
+    the timing, it is that silence becomes distinguishable from slowness.
+    """
+    state = {"n": 0, "started": time.time(), "last": time.time()}
+
+    def on_task(task) -> None:
+        state["n"] += 1
+        now = time.time()
+        print(f"  [{state['n']:2d}/{total}] {task.key:22s} "
+              f"(+{now - state['last']:5.0f}s, {now - state['started']:5.0f}s total)",
+              flush=True)
+        state["last"] = now
+
+    return on_task
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the Quorum judgment benchmark.")
     parser.add_argument("--out", default=None, help="write a Markdown report here")
@@ -142,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         single_seat=single_seat,
         config=SessionConfig(baseline_seat=REAL_SINGLE) if args.real else None,
         is_mock=not args.real,
-        on_task=lambda t: print(f"  running {t.key}…", flush=True),
+        on_task=_progress(len(tasks)),
     )
 
     print()
