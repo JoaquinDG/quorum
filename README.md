@@ -575,6 +575,18 @@ rule**: the record has to be sufficient on its own, and `replay.py` plus a
 report that reads only the file are how that claim is kept honest rather than
 asserted.
 
+## How to help
+
+The most useful contribution to this project is a finding that costs it a
+claim. [`CONTRIBUTING.md`](CONTRIBUTING.md) lists the asks in order of how much
+they would change what this README is allowed to say:
+
+1. **Attack the rubrics** — they decide the benchmark before a model runs, and have had one author and one model reviewer.
+2. **Run the probe with your own lineup** — the +9.7 point leak is one prober, 31 guesses. Report the number whatever it says.
+3. **Break a protocol invariant** — independence, blinding, no-self-grading, fail-closed, fixed rounds. A failing test is a complete contribution.
+4. **Add a provider adapter** — two vendors have been wired and both surfaced a URL bug.
+5. **Contribute a judgment task you expect the council to lose** — those are the ones that make the benchmark honest.
+
 ## Papers & provenance
 
 | repo | paper |
