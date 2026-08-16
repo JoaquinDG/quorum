@@ -322,3 +322,33 @@ class ReportingTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TokenBudgetTests(unittest.TestCase):
+    """A budget too small for a reasoning model favours the council silently.
+
+    The first real run had `single` and `self_critique` cost $0.00 and produce
+    nothing: 1024 tokens went entirely to reasoning, the adapter raised
+    `ProviderTruncated`, and the harness recorded "no scored answer". A
+    benchmark built to ask whether a council beats one model would have shown
+    the one model failing to answer — favouring the council, in the exact
+    measurement meant to check it.
+
+    The council arm was unaffected because `SessionConfig.max_tokens` had
+    already been raised for the same reason, which is what made the failure
+    one-sided rather than obvious.
+    """
+
+    def test_the_arms_share_the_session_budget_order_of_magnitude(self):
+        from quorum.benchmark import MAX_TOKENS
+        from quorum import SessionConfig
+
+        self.assertGreaterEqual(MAX_TOKENS, SessionConfig().max_tokens)
+
+    def test_no_arm_still_hardcodes_a_small_budget(self):
+        import inspect
+        from quorum import benchmark
+
+        source = inspect.getsource(benchmark)
+        self.assertNotIn(", 1024)", source)
+        self.assertNotIn(", 1024\n", source)

@@ -59,6 +59,22 @@ from .sheets import SheetError, extract_json
 
 ARMS = ("quorum", "single", "self_critique")
 
+MAX_TOKENS = 16384
+"""Completion budget for the non-council arms and the judge.
+
+Was 1024, which was chosen before reasoning models were in scope and silently
+broke the first real run: `single` and `self_critique` both cost $0.00 and
+produced nothing, because the budget was spent reasoning before a visible
+token appeared. The council arm survived only because `SessionConfig` had
+already been raised for the same reason.
+
+The failure is worth naming because of how it presented. Truncation raises
+`ProviderTruncated`, the arm records an error, and the harness reports "no
+scored answer" — so a benchmark comparing a council against a single model
+would have shown the single model failing to answer at all. Silently favouring
+the council, in the one measurement built to test whether the council is worth
+it."""
+
 
 # --------------------------------------------------------------------------
 # tasks and rubrics
@@ -161,7 +177,7 @@ class ArmResult:
 def run_single(task: JudgmentTask, seat: Seat, providers: ProviderPool) -> ArmResult:
     try:
         completion = providers.get(seat.provider).complete(
-            seat.model_id, SINGLE_TEMPLATE.format(task=task.prompt), 1024
+            seat.model_id, SINGLE_TEMPLATE.format(task=task.prompt), MAX_TOKENS
         )
     except ProviderError as exc:
         return ArmResult("single", "", error=str(exc))
@@ -182,7 +198,9 @@ def run_self_critique(
         return ArmResult("self_critique", "", error=first.error)
     prompt = SELF_CRITIQUE_TEMPLATE.format(task=task.prompt, answer=first.answer)
     try:
-        completion = providers.get(seat.provider).complete(seat.model_id, prompt, 1024)
+        completion = providers.get(seat.provider).complete(
+            seat.model_id, prompt, MAX_TOKENS
+        )
     except ProviderError as exc:
         return ArmResult("self_critique", "", error=str(exc))
     try:
@@ -261,7 +279,7 @@ def judge(
 
     try:
         completion = providers.get(judge_seat.provider).complete(
-            judge_seat.model_id, prompt, 1024
+            judge_seat.model_id, prompt, MAX_TOKENS
         )
         data = extract_json(completion.text, actor="judge")
     except (ProviderError, SheetError) as exc:
