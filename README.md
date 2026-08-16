@@ -24,7 +24,7 @@ Sibling to [Switchboard](https://github.com/JoaquinDG/switchboard): Switchboard 
 
 > **Status: built, and partly measured.** The white paper above is a snapshot of **15 August 2026**; the repository has moved since, and where the two differ this section is the one that is current.
 >
-> Measured against real models since the paper: eight live sessions across five labs (`evals/LINEUPS.md`), an adversarial review of the benchmark rubrics that found them tilted (`evals/RUBRIC_REVIEW.md`), a run of the council on its own open design questions (`evals/DOGFOOD.md`), and the deanonymization probe (`evals/PROBE.md`). Those files carry the numbers; this README deliberately does not restate the probe's headline figure, because the paper predates that run and the two should not appear to disagree at a glance.
+> Measured against real models since the paper: eight live sessions across five labs (`evals/LINEUPS.md`), an adversarial review of the benchmark rubrics that found them tilted (`evals/RUBRIC_REVIEW.md`), a run of the council on its own open design questions (`evals/DOGFOOD.md`), and the deanonymization probe, which found a **+9.7 point leak** (`evals/PROBE.md`). The paper reports that probe as built and unrun, because it was — the run came after.
 >
 > **Still unmeasured: answer quality.** The benchmark harness runs, but only against mocks — there is no result, and this README makes no claim that a council writes better answers than one model. That is the project's central untested proposition and it is stated as such in the paper too.
 
@@ -201,13 +201,32 @@ Unpriced seats are named rather than costed at zero. A report showing `$0.0031` 
 
 ## Is the blinding actually blind?
 
-Every anonymization scheme claims to work. This one publishes a number.
+Every anonymization scheme claims to work. This one published a number, and the number says **it leaks**.
 
-A critic model that took no part is shown the round-1 sheets under fresh labels, told which model families were in the room and that each wrote exactly one sheet, and asked to say which wrote which. Accuracy is scored against chance.
+### 41.9% accuracy against 32.3% chance — a leak of +9.7 points
+
+`gemini-3.1-pro-preview`, which held no seat in any session it scored, was shown the round-1 sheets under fresh labels and asked who wrote which. 31 guesses across 10 real sessions spanning five labs.
 
 ```bash
-PYTHONPATH=src python3 evals/probe_eval.py
+PYTHONPATH=src python3 evals/probe_real.py --run    # the number above
+PYTHONPATH=src python3 evals/probe_eval.py          # the same harness, offline
 ```
+
+Full breakdown in [`evals/PROBE.md`](evals/PROBE.md). **Measured after the white paper**, which reports the probe as built and unrun.
+
+**The distribution is more interesting than the average.** It is not uniform noise:
+
+| result | sessions |
+| --- | --- |
+| every sheet identified | 3 |
+| one of three | 3 |
+| none identified | 4 |
+
+The prober either solved a session outright or missed it entirely, and the sessions it solved were the ones seating stronger models. That suggests **more capable models have more distinctive voices**, so upgrading a seat to fix schema compliance may cost blinding — the two goals pull against each other. A hypothesis at n=10, not a finding.
+
+**What it does not show.** One prober, one run, 31 guesses: the error bars are wide and this cannot separate a small leak from sampling noise. It measures whether *this* reader could identify authorship from *these* sheets, not whether the protocol is blind in general. A stronger prober may well do better, which is the direction that would matter.
+
+**The near-miss worth recording.** The first run had every session abstain on a token budget. With zero scored guesses, accuracy and chance are both `0.0`, so the excess was `0.0` and the verdict logic printed *"at or below chance — no leak detected"*. A measurement that completely failed produced the most reassuring possible output, in the one metric whose entire purpose is refusing to assume the blinding works. `ProbeReport.measured` now guards it and two tests pin it.
 
 Three commitments make the number worth reading:
 
@@ -495,9 +514,9 @@ Four models, two labs, one answer. That does not refute correlated priors (all f
 
 ## Known limitations
 
-- **The blinding is structurally sound and empirically unmeasured.** The probe exists and runs; it has never been pointed at a real model. Until it is, "blind" here means "structurally blinded", not "measured to be blind".
+- **The blinding leaks, by 9.7 points over chance.** Measured, not assumed — see above. One prober, 31 guesses, wide error bars; a stronger prober is the experiment that would matter, and it has not been run.
 - **No benchmark numbers.** The harness runs; every arm has so far been answered by a mock. There is no result, and the README will not imply one.
-- **The rubrics have had one author and no reviewer.** They are the artifact most able to decide the benchmark's outcome before a model is called.
+- **The rubrics tilt toward deliberation and cannot fully be un-tilted.** An independent reviewer called all 19 it saw deliberation-favouring and flagged 44 of 120 criteria as mistagged; the two systematic ones are fixed (`evals/RUBRIC_REVIEW.md`). Applying its verdict honestly still leaves 7 of 20 tasks without a neutral majority, because what makes an answer good on an ambiguous question is largely what a debate produces. That is a standing limit on what this benchmark can prove. It has had one *human* author and no human reviewer.
 - **Vague-agreement detection is coarse.** The structural defence is the schema — you must name a sheet and a claim number. The text filter only stops the laziest evasion; a model determined to be agreeable in forty characters will get past it. The position-change rate is what actually reveals whether critique is happening.
 - **No answer-quality claim.** The claims are surfaced disagreement, auditable reasoning, and calibrated confidence — nothing about better answers.
 - **Convening runs on keyword heuristics** unless you supply `task_type` and `complexity`. See the caveats above.
