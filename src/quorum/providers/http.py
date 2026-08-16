@@ -170,6 +170,23 @@ class _HTTPProviderBase:
                     provider=self.name,
                     model_id=model_id,
                 ) from None
+            except OSError as e:
+                # The catch-all that was missing. urllib wraps most transport
+                # problems in URLError, but a socket reset *after* the request
+                # is sent surfaces as a bare ConnectionResetError, which is an
+                # OSError and slipped straight through every handler above.
+                #
+                # It escaped as an unhandled exception and killed a 20-task
+                # benchmark run partway through — a transient blip taking down
+                # the exact long run the retry logic exists to protect. Treated
+                # as an outage, because that is what it is.
+                last = ProviderUnavailable(
+                    f"{self.name}: transport failed for {model_id}: "
+                    f"{type(e).__name__}: {e}",
+                    provider=self.name,
+                    model_id=model_id,
+                )
+                retry_after = None
 
             if attempt < self.max_retries:
                 self._sleep(self._backoff(attempt, retry_after))

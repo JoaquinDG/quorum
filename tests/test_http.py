@@ -278,3 +278,59 @@ class ChatPathTests(unittest.TestCase):
                 OpenAICompatibleProvider(api_key="k", chat_path=given).chat_path,
                 "/v1/chat/completions",
             )
+
+
+class TransportResilienceTests(unittest.TestCase):
+    """A transient socket error must not escape as an unhandled exception.
+
+    urllib wraps most transport problems in URLError, but a reset *after* the
+    request is sent surfaces as a bare ConnectionResetError — an OSError that
+    slipped past every handler. It killed a 20-task benchmark run partway
+    through: a blip taking down the exact long run the retries exist for.
+    """
+
+    class _ResettingProvider(OpenAICompatibleProvider):
+        def __init__(self, fail_times, **kw):
+            super().__init__(api_key="k", sleep=lambda _: None, **kw)
+            self.fail_times, self.calls = fail_times, 0
+
+        def _raw(self):
+            self.calls += 1
+            if self.calls <= self.fail_times:
+                raise ConnectionResetError(54, "Connection reset by peer")
+            return {"choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+
+    def test_connection_reset_is_classified_as_an_outage(self):
+        import socket
+        import urllib.error
+        import urllib.request
+        from unittest import mock as m
+
+        provider = OpenAICompatibleProvider(api_key="k", max_retries=1,
+                                            sleep=lambda _: None)
+        with m.patch.object(urllib.request, "urlopen",
+                            side_effect=ConnectionResetError(54, "reset")):
+            with self.assertRaises(ProviderUnavailable) as ctx:
+                provider.complete("gpt-x", "hello", 100)
+        self.assertIn("ConnectionResetError", str(ctx.exception))
+        self.assertIn("transport failed", str(ctx.exception))
+
+    def test_a_reset_that_clears_on_retry_returns_normally(self):
+        import urllib.request
+        from unittest import mock as m
+
+        class FakeResponse:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self):
+                import json as j
+                return j.dumps({
+                    "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1}}).encode()
+
+        provider = OpenAICompatibleProvider(api_key="k", max_retries=2,
+                                            sleep=lambda _: None)
+        with m.patch.object(urllib.request, "urlopen",
+                            side_effect=[ConnectionResetError(54, "reset"), FakeResponse()]):
+            self.assertEqual(provider.complete("gpt-x", "hello", 100).text, "ok")
