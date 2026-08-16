@@ -157,16 +157,18 @@ def build_pool(council: Council) -> ProviderPool:
 def preflight(council: Council, pool: ProviderPool) -> int:
     """One tiny call per seat. Cheap insurance against a stale model id.
 
-    The 64-token budget is deliberately loose. Reasoning models spend the
-    budget on reasoning before emitting anything, so a preflight tight enough
-    to be elegant fails on healthy seats — which is worse than useless, since
-    the whole point is to tell a real problem from a configured one."""
+    The budget is deliberately loose, and has been raised twice for the same
+    reason: reasoning models spend it before emitting a visible token, so a
+    preflight tight enough to feel elegant fails on healthy seats. 5 was too
+    small for gpt-5, then 64 was too small for gemini-3.1-pro. A preflight that
+    cries wolf is worse than none, because its whole job is telling a real
+    problem from a configured one."""
     print("preflight — one small call per seat\n")
     failures = 0
     for seat in council.seats():
         role = "arbiter" if seat is council.arbiter else "student"
         try:
-            pool.get(seat.provider).complete(seat.model_id, "Reply with: ok", 64)
+            pool.get(seat.provider).complete(seat.model_id, "Reply with: ok", 2048)
             print(f"  OK        {role:<8} {seat.model_id}  ({seat.provider})")
         except ProviderConfigError as exc:
             failures += 1
