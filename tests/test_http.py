@@ -384,3 +384,54 @@ class WallClockDeadlineTests(unittest.TestCase):
     def test_the_default_deadline_exceeds_the_per_read_timeout(self):
         provider = OpenAICompatibleProvider(api_key="k")
         self.assertGreater(provider.deadline, provider.timeout)
+
+
+class DeadlineIsRetryableTests(unittest.TestCase):
+    """A stalled stream is transient, so the deadline must not end the call.
+
+    `ProviderTimeout` is a RuntimeError; every other handler in `_request`
+    catches OSError subclasses, so a fired deadline escaped the retry loop and
+    failed the call outright. A provider that stalls intermittently on long
+    prompts — measured at 1.4s for three words and indefinitely for a full
+    rubric — then took down entire runs it should only have slowed.
+    """
+
+    def test_a_stall_that_clears_on_retry_succeeds(self):
+        import json as j
+        import urllib.request
+        from unittest import mock as m
+
+        class FakeResponse:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self):
+                return j.dumps({
+                    "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1}}).encode()
+
+        import time as t
+        calls = {"n": 0}
+
+        def stall_then_answer(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                t.sleep(30)          # abandoned by the deadline
+            return FakeResponse()
+
+        provider = OpenAICompatibleProvider(api_key="k", deadline=0.3, max_retries=2,
+                                            sleep=lambda _: None)
+        with m.patch.object(urllib.request, "urlopen", side_effect=stall_then_answer):
+            self.assertEqual(provider.complete("gpt-x", "hello", 100).text, "ok")
+        self.assertEqual(calls["n"], 2, "the deadline did not trigger a retry")
+
+    def test_a_permanent_stall_still_fails(self):
+        import time as t
+        import urllib.request
+        from unittest import mock as m
+
+        provider = OpenAICompatibleProvider(api_key="k", deadline=0.2, max_retries=1,
+                                            sleep=lambda _: None)
+        with m.patch.object(urllib.request, "urlopen",
+                            side_effect=lambda *a, **k: t.sleep(30)):
+            with self.assertRaises(ProviderTimeout):
+                provider.complete("gpt-x", "hello", 100)

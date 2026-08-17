@@ -205,6 +205,19 @@ class _HTTPProviderBase:
                         model_id=model_id,
                     )
                 retry_after = None
+            except ProviderTimeout as e:
+                # The deadline fired. Treat it like any other transient
+                # failure: a stalled stream is usually the connection, not the
+                # request, and the next attempt often succeeds in seconds.
+                #
+                # It escaped the retry loop before, because ProviderTimeout is
+                # a RuntimeError and every handler here catches OSError
+                # subclasses. So one stall failed the call outright, and a
+                # provider that stalls intermittently on long prompts —
+                # measured: 1.4s on three words, indefinite on a full rubric —
+                # took down whole runs it should merely have slowed.
+                last = e
+                retry_after = None
             except json.JSONDecodeError as e:
                 raise ProviderError(
                     f"{self.name}: response was not valid JSON for {model_id}: {e}",

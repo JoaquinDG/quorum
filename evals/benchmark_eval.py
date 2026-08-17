@@ -73,17 +73,25 @@ VENDORS = {
 }
 
 
+# A stalled provider once cost five and a half hours on one call. Measured
+# healthy latency is 10-17s for a full answer sheet regardless of budget, so
+# 90s is generous — and with deadline timeouts now retryable, a stall costs
+# 90s and a retry rather than the whole run.
+DEADLINE = 90.0
+
+
 def real_pool() -> ProviderPool:
     providers = []
     labs = {s.provider for s in REAL_COUNCIL.seats()} | {REAL_SINGLE.provider,
                                                          REAL_JUDGE.provider}
     for name in sorted(labs):
         if name == "anthropic":
-            providers.append(AnthropicProvider())
+            providers.append(AnthropicProvider(deadline=DEADLINE))
         else:
             base, key, path = VENDORS[name]
             providers.append(OpenAICompatibleProvider(
-                name=name, base_url=base, env_var=key, chat_path=path))
+                name=name, base_url=base, env_var=key, chat_path=path,
+                deadline=DEADLINE))
     return ProviderPool(providers)
 
 
