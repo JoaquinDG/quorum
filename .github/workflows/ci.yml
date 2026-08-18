@@ -15,8 +15,12 @@ jobs:
         # no network or secrets anywhere in this workflow.
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # v7 of both is the first major that ships a node24 entry point. The
+      # older pins still ran, but every job carried a deprecation annotation
+      # saying the runner was forcing them onto node24 anyway, which is the
+      # state right before they stop running at all.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
