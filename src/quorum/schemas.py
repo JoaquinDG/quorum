@@ -50,7 +50,12 @@ def _sheet_properties() -> dict[str, Any]:
         "assumptions": {"type": "array", "items": {"type": "string"}},
         "would_change_my_mind": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "nuance": {"type": "string"},
+        # Nullable rather than optional. OpenAI's strict mode requires every
+        # key in `properties` to appear in `required`, so a field the protocol
+        # treats as optional has to be expressible as an explicit null instead
+        # of an omission. `sheets.parse_sheet` already reads null and absent
+        # identically, so this is the same contract said in the other grammar.
+        "nuance": {"type": ["string", "null"]},
     }
 
 
@@ -59,6 +64,7 @@ SHEET_SCHEMA: dict[str, Any] = {
     "properties": _sheet_properties(),
     "required": [
         "position", "claims", "assumptions", "would_change_my_mind", "confidence",
+        "nuance",
     ],
     "additionalProperties": False,
 }
@@ -90,8 +96,10 @@ CRITIQUE_SCHEMA: dict[str, Any] = {
 def _revision_properties() -> dict[str, Any]:
     props = _sheet_properties()
     props["changed_position"] = {"type": "boolean"}
+    # Nullable for the same reason as `nuance`: strict mode has no way to say
+    # "may be omitted", and a revision that cites nobody is legitimate.
     props["because"] = {
-        "type": "array",
+        "type": ["array", "null"],
         "items": {
             "type": "object",
             "properties": {
@@ -110,7 +118,7 @@ REVISION_SCHEMA: dict[str, Any] = {
     "properties": _revision_properties(),
     "required": [
         "position", "claims", "assumptions", "would_change_my_mind",
-        "confidence", "changed_position",
+        "confidence", "changed_position", "nuance", "because",
     ],
     "additionalProperties": False,
 }

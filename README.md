@@ -10,7 +10,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 483 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 490 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -570,7 +570,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           483 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
+tests/           490 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility
