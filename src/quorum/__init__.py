@@ -159,7 +159,20 @@ from .sheets import (
     parse_sheet,
     parse_verdict,
 )
-from .trace import EVENT_TYPES, TraceEvent, TraceWriter, group_sessions, read_trace
+from .repair import RepairReport, recover
+from .resume import Checkpoint, ResumeError, SessionLocked, TraceLock
+from .resume import inspect as inspect_trace
+from .schemas import SCHEMA_FOR_ROUND, SCHEMAS
+from .trace import (
+    EVENT_TYPES,
+    CacheSummary,
+    MalformationRate,
+    TraceEvent,
+    TraceWriter,
+    group_sessions,
+    malformation_by_model,
+    read_trace,
+)
 
 __version__ = "0.1.0"
 
@@ -238,7 +251,19 @@ __all__ = [
     "Task",
     "TaskOutcome",
     "TaskSignals",
+    "CacheSummary",
+    "Checkpoint",
+    "MalformationRate",
+    "RepairReport",
+    "ResumeError",
+    "SCHEMAS",
+    "SCHEMA_FOR_ROUND",
+    "SessionLocked",
     "TraceEvent",
+    "TraceLock",
+    "inspect_trace",
+    "malformation_by_model",
+    "recover",
     "TraceWriter",
     "VERDICT_PROMPT_HEADER",
     "VERIFIABLE_TYPES",

@@ -44,6 +44,8 @@ from .costs import Baseline, cost_multiple, single_model_baseline
 from .council import Council, Seat
 from .divergence import Disagreement, disagreement
 from . import shield as shd
+from .repair import CLEAN as CLEAN_REPAIR, RepairReport, recover
+from .schemas import SCHEMA_FOR_ROUND
 from .prompts import (
     build_critique_prompt,
     build_skeptic_critique_prompt,
@@ -88,6 +90,31 @@ class SessionConfig:
     """Below this many round-1 sheets there is no peer review to speak of, so
     the session closes without a verdict rather than presenting one model's
     opinion as a council's."""
+
+    structured_output: bool = True
+    """Ask providers that can constrain output to a schema to do so.
+
+    Prevention rather than recovery: a schema-constrained reply cannot be the
+    unterminated object that cost a seat its round. Feature-detected per
+    provider — an adapter that does not advertise `schema_mode` is called
+    exactly as before, so a lineup with one capable vendor and three
+    incapable ones runs unchanged for the other three.
+
+    The schemas restate the existing contract and nothing more, and the parser
+    stays the authority regardless of what the provider promised."""
+
+    repair_json: bool = True
+    """Attempt deterministic local repair before spending a re-prompt.
+
+    On by default because the repairs are syntactic and free: closing an
+    object the model left open costs no inference and recovers a seat that
+    would otherwise argue for nobody. Turn it off to reproduce the engine's
+    pre-repair behaviour — which is how the malformed-seat fixture was
+    recorded, and how the malformation rate is measured against a control.
+
+    It never widens what counts as a valid response: `repair` only makes text
+    parse, and the schema check that follows is unchanged. A seat that sent
+    something genuinely wrong is still marked absent."""
 
     sheet_repairs: int = 1
     """Re-prompts allowed for a round-1 sheet that would not parse.
@@ -245,6 +272,13 @@ class SessionResult:
     tokens_in: int
     tokens_out: int
     cost_est: float
+    cache: tr.CacheSummary = field(default_factory=tr.CacheSummary)
+    """Prompt-cache accounting for this session.
+
+    Defaulted rather than required so a result built by an older caller (or a
+    replay of a trace written before cache fields existed) still constructs,
+    and reports an all-zero summary — no caching observed, which is the
+    truthful reading of a record that does not mention it."""
     failed_reason: str | None = None
     parse_attempts: int = 0
     parse_failures: int = 0
@@ -450,6 +484,7 @@ class SessionResult:
             "tokens_in": self.tokens_in,
             "tokens_out": self.tokens_out,
             "cost_est": self.cost_est,
+            "cache": self.cache.to_dict(),
             "baseline_model": self.baseline.model_id if self.baseline else None,
             "baseline_cost_est": self.baseline.cost_est if self.baseline else None,
             "cost_multiple": self.cost_multiple,
@@ -509,9 +544,39 @@ class Session:
             material.encode("utf-8"), digest_size=6
         ).hexdigest()
 
-    def _call(self, seat: Seat, prompt: str) -> Completion:
+    def _recover(self, text: str, actor: str) -> tuple[Any, RepairReport]:
+        """Decode a response, repairing it first when repair is enabled.
+
+        The single gate for every parse site, so "repair is off" means exactly
+        the pre-repair engine on all four rounds rather than three of them.
+        """
+        if not self.config.repair_json:
+            return text, CLEAN_REPAIR
+        return recover(text, actor=actor)
+
+    def _call(self, seat: Seat, prompt: str, round: int = 0) -> Completion:
         provider = self.providers.get(seat.provider)
-        return provider.complete(seat.model_id, prompt, self.config.max_tokens)
+        schema = self._schema_for(provider, round)
+        if schema is None:
+            return provider.complete(seat.model_id, prompt, self.config.max_tokens)
+        return provider.complete(
+            seat.model_id, prompt, self.config.max_tokens, schema=schema
+        )
+
+    def _schema_for(self, provider: Any, round: int) -> tuple[str, dict] | None:
+        """The schema to constrain this round with, or None to ask in prose.
+
+        Feature detection rather than a registry of vendor names: a provider
+        advertises `schema_mode`, and anything that does not is called through
+        the original one-method signature. Third-party adapters written before
+        this existed keep working untouched, which is the property that makes
+        the fallback safe rather than merely present.
+        """
+        if not self.config.structured_output:
+            return None
+        if not getattr(provider, "schema_mode", None):
+            return None
+        return SCHEMA_FOR_ROUND.get(round)
 
     def _emit(
         self,
@@ -525,7 +590,17 @@ class Session:
     ) -> None:
         tokens_in = completion.input_tokens if completion else 0
         tokens_out = completion.output_tokens if completion else 0
-        cost = seat.cost.estimate(tokens_in, tokens_out) if (seat and completion) else 0.0
+        cache_read = completion.cache_read_tokens if completion else 0
+        cache_write = completion.cache_write_tokens if completion else 0
+        if seat and completion:
+            cost = seat.cost.estimate(tokens_in, tokens_out, cache_read, cache_write)
+            # Priced on the same seat, so the pair is comparable by
+            # construction: the only difference between them is the cache.
+            uncached = seat.cost.uncached_estimate(
+                tokens_in, tokens_out, cache_read, cache_write
+            )
+        else:
+            cost = uncached = 0.0
         self.writer.emit(
             session_id=session_id,
             round=round,
@@ -535,6 +610,9 @@ class Session:
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             cost_est=cost,
+            cache_read=cache_read,
+            cache_write=cache_write,
+            uncached_cost_est=uncached,
         )
 
     def _nonce(self, session_id: str, recipient: Any, round: int) -> str:
@@ -580,7 +658,166 @@ class Session:
         )
         return findings
 
+    def _checkpoint(
+        self,
+        session_id: str,
+        round: int,
+        records: dict[int, StudentRecord],
+        absences: list[Absence],
+        objections: list[Objection],
+    ) -> None:
+        """Mark a round finished, so resume knows what has been paid for.
+
+        The payload is a summary, not a second copy of the state. Everything
+        needed to rebuild a session is already in the events this marker
+        follows, and duplicating it here would create a parallel format that
+        can disagree with the canonical one — the exact failure the resume
+        design was told to avoid.
+        """
+        self._emit(
+            session_id,
+            round,
+            tr.SYSTEM,
+            tr.ROUND_COMPLETED,
+            {
+                "round": round,
+                "present": [s for s in sorted(records) if records[s].present],
+                "absent": sorted({a.seat for a in absences if a.seat is not None}),
+                "objections": len(objections),
+            },
+        )
+
     # -- the protocol ------------------------------------------------------
+
+    def resume(
+        self,
+        events: list[tr.TraceEvent],
+        *,
+        lock_path: str | None = None,
+    ) -> SessionResult:
+        """Continue an interrupted session from its last completed round.
+
+        Rounds already in the trace are not re-run and not re-billed. Rounds
+        that remain run live, under the recorded session id so their prompts
+        are byte-identical to the ones the interrupted process would have
+        sent.
+
+        Resuming a session that already closed is a no-op: the recorded result
+        is rebuilt and returned without a single model call, so a retry loop
+        that fires twice cannot turn a finished debate into a second bill.
+        """
+        from .resume import ResumeError, TraceLock, inspect, rebuild
+
+        checkpoint = inspect(events)
+        session_id = checkpoint.session_id
+        lock = TraceLock(lock_path or self.writer.path or session_id)
+
+        with lock:
+            first_event = len(self.writer.events)
+            self.writer.adopt(events)
+
+            state = rebuild(events, self.council)
+            records: dict[int, StudentRecord] = state["records"]
+            absences: list[Absence] = state["absences"]
+            objections: list[Objection] = state["objections"]
+            counters: dict[str, int] = state["counters"]
+            findings: list[shd.Finding] = []
+            blinding: dict[int, BlindingRound] = {}
+            task = checkpoint.task
+
+            if checkpoint.complete:
+                # Idempotent. The debate is over; rebuilding it costs nothing
+                # and re-running it would cost everything twice.
+                return self._close(
+                    session_id, task, records, objections, self._recorded_verdict(events),
+                    blinding, absences, first_event, counters, findings,
+                    failed_reason=None,
+                )
+            if not checkpoint.resumable:
+                raise ResumeError(
+                    f"session {session_id} has no completed round to resume from"
+                )
+
+            self._emit(
+                session_id,
+                checkpoint.last_round,
+                tr.SYSTEM,
+                tr.SESSION_RESUMED,
+                {
+                    "resumed_after_round": checkpoint.last_round,
+                    "rounds_replayed": checkpoint.last_round,
+                    "note": "rounds at or below resumed_after_round were read "
+                            "from the trace and were not re-billed",
+                },
+            )
+
+            present = [s for s in self.council.student_seats() if records[s].present]
+            if len(present) < self.config.min_council:
+                return self._close(
+                    session_id, task, records, objections, None, blinding, absences,
+                    first_event, counters, findings,
+                    failed_reason=(
+                        f"only {len(present)} of {len(self.council.students)} "
+                        f"students submitted a sheet; a council of at least "
+                        f"{self.config.min_council} is required for peer review"
+                    ),
+                )
+
+            # Blinding is recomputed, never restored: same session id, same
+            # seats, same salt, so it comes back identical by construction.
+            if checkpoint.last_round < ROUND_CRITIQUE:
+                blinding[ROUND_CRITIQUE] = build_blinding(
+                    session_id, present, salt=BLIND_SALT_CRITIQUE
+                )
+                self._round2(
+                    session_id, task, records, present, blinding[ROUND_CRITIQUE],
+                    objections, absences, counters, findings,
+                )
+                self._checkpoint(
+                    session_id, ROUND_CRITIQUE, records, absences, objections
+                )
+
+            if checkpoint.last_round < ROUND_REVISION:
+                blinding[ROUND_REVISION] = build_blinding(
+                    session_id, present, salt=BLIND_SALT_REVISION
+                )
+                self._round3(
+                    session_id, task, records, present, blinding[ROUND_REVISION],
+                    objections, absences, counters, findings,
+                )
+                self._checkpoint(
+                    session_id, ROUND_REVISION, records, absences, objections
+                )
+
+            verdict, failure = self._round4(
+                session_id, task, records, present, objections, absences, counters,
+                findings,
+            )
+            return self._close(
+                session_id, task, records, objections, verdict, blinding, absences,
+                first_event, counters, findings, failed_reason=failure,
+            )
+
+    def _recorded_verdict(self, events: list[tr.TraceEvent]) -> Verdict | None:
+        """The verdict a finished session already reached, read back."""
+        from .sheets import parse_verdict
+
+        for event in events:
+            if event.event_type == tr.VERDICT_DELIVERED:
+                raw = event.payload.get("verdict")
+                if isinstance(raw, dict):
+                    sources = tuple(
+                        str(item.get("source", ""))
+                        for item in raw.get("minority_report", [])
+                    )
+                    try:
+                        return parse_verdict(
+                            raw, allowed_sources=sources or ("Student 1",),
+                            actor=tr.ARBITER,
+                        )
+                    except Exception:  # noqa: BLE001 - record wins over strictness
+                        return None
+        return None
 
     def run(self, task: str, *, session_id: str | None = None) -> SessionResult:
         if not task or not task.strip():
@@ -636,6 +873,7 @@ class Session:
         findings.extend(self._flag(session_id, 0, tr.SYSTEM, shd.scan_task(task)))
 
         self._round1(session_id, task, records, absences, counters, findings)
+        self._checkpoint(session_id, ROUND_EXAM, records, absences, objections)
 
         present = [s for s in self.council.student_seats() if records[s].present]
         if len(present) < self.config.min_council:
@@ -665,6 +903,8 @@ class Session:
             absences, counters, findings,
         )
 
+        self._checkpoint(session_id, ROUND_CRITIQUE, records, absences, objections)
+
         blinding[ROUND_REVISION] = build_blinding(
             session_id, present, salt=BLIND_SALT_REVISION
         )
@@ -672,6 +912,8 @@ class Session:
             session_id, task, records, present, blinding[ROUND_REVISION], objections,
             absences, counters, findings,
         )
+
+        self._checkpoint(session_id, ROUND_REVISION, records, absences, objections)
 
         verdict, failure = self._round4(
             session_id, task, records, present, objections, absences, counters,
@@ -708,7 +950,7 @@ class Session:
             seat = self.council.student(seat_no)
             actor = tr.student_actor(seat_no)
             try:
-                completion = self._call(seat, prompt)
+                completion = self._call(seat, prompt, ROUND_EXAM)
             except ProviderError as exc:
                 counters["provider_errors"] += 1
                 self._absent(
@@ -720,10 +962,11 @@ class Session:
             sheet = None
             last_error = ""
             last_completion = completion
+            repair_report = CLEAN_REPAIR
             for attempt in range(self.config.sheet_repairs + 1):
                 if attempt:
                     try:
-                        completion = self._call(seat, attempt_prompt)
+                        completion = self._call(seat, attempt_prompt, ROUND_EXAM)
                     except ProviderError as exc:
                         counters["provider_errors"] += 1
                         last_error = str(exc)
@@ -731,7 +974,11 @@ class Session:
                     counters["attempts"] += 1
                     last_completion = completion
                 try:
-                    sheet = parse_sheet(completion.text, actor=actor)
+                    # Repair before re-asking: a response that was merely cut
+                    # off is recoverable here for nothing, and a seat that
+                    # survives is a seat that keeps arguing.
+                    data, repair_report = self._recover(completion.text, actor)
+                    sheet = parse_sheet(data, actor=actor)
                     break
                 except SheetError as exc:
                     counters["failures"] += 1
@@ -772,6 +1019,7 @@ class Session:
                     "model_id": seat.model_id,
                     "provider": seat.provider,
                     "sheet": sheet.to_dict(),
+                    **repair_report.as_payload(),
                 },
                 completion=completion,
                 seat=seat,
@@ -832,10 +1080,11 @@ class Session:
             raw = None
             last_error = ""
             last_completion: Completion | None = None
+            repair_report = CLEAN_REPAIR
             attempt_prompt = prompt
             for attempt in range(self.config.critique_repairs + 1):
                 try:
-                    completion = self._call(seat, attempt_prompt)
+                    completion = self._call(seat, attempt_prompt, ROUND_CRITIQUE)
                 except ProviderError as exc:
                     counters["provider_errors"] += 1
                     last_error = str(exc)
@@ -848,7 +1097,8 @@ class Session:
                 counters["attempts"] += 1
                 last_completion = completion
                 try:
-                    raw = parse_critique(completion.text, allowed=allowed, actor=actor)
+                    data, repair_report = self._recover(completion.text, actor)
+                    raw = parse_critique(data, allowed=allowed, actor=actor)
                     break
                 except SheetError as exc:
                     counters["failures"] += 1
@@ -907,6 +1157,7 @@ class Session:
                         "critic_model": seat.model_id,
                         "target_model": target.model_id,
                         "claim_text": claim.text if claim else "",
+                        **repair_report.as_payload(),
                     },
                     completion=completion,
                     seat=seat,
@@ -967,7 +1218,7 @@ class Session:
                 policy=self.config.shield_policy,
             )
             try:
-                completion = self._call(seat, prompt)
+                completion = self._call(seat, prompt, ROUND_REVISION)
             except ProviderError as exc:
                 counters["provider_errors"] += 1
                 self._absent(
@@ -979,10 +1230,11 @@ class Session:
             revision = None
             last_error = ""
             last_completion = completion
+            repair_report = CLEAN_REPAIR
             for attempt in range(self.config.revision_repairs + 1):
                 if attempt:
                     try:
-                        completion = self._call(seat, attempt_prompt)
+                        completion = self._call(seat, attempt_prompt, ROUND_REVISION)
                     except ProviderError as exc:
                         counters["provider_errors"] += 1
                         last_error = str(exc)
@@ -990,7 +1242,8 @@ class Session:
                     counters["attempts"] += 1
                     last_completion = completion
                 try:
-                    revision = parse_revision(completion.text, allowed=allowed, actor=actor)
+                    data, repair_report = self._recover(completion.text, actor)
+                    revision = parse_revision(data, allowed=allowed, actor=actor)
                     break
                 except SheetError as exc:
                     counters["failures"] += 1
@@ -1050,6 +1303,7 @@ class Session:
                          "critic_seat": blinding.seat_for(seat_no, ref.critic)}
                         for ref in revision.because
                     ],
+                    **repair_report.as_payload(),
                 },
                 completion=completion,
                 seat=seat,
@@ -1107,9 +1361,10 @@ class Session:
         attempt_prompt = prompt
         last_error = ""
         last_completion: Completion | None = None
+        repair_report = CLEAN_REPAIR
         for attempt in range(self.config.verdict_repairs + 1):
             try:
-                completion = self._call(seat, attempt_prompt)
+                completion = self._call(seat, attempt_prompt, ROUND_GRADING)
             except ProviderError as exc:
                 counters["provider_errors"] += 1
                 last_error = str(exc)
@@ -1117,8 +1372,9 @@ class Session:
             counters["attempts"] += 1
             last_completion = completion
             try:
+                data, repair_report = self._recover(completion.text, tr.ARBITER)
                 verdict = parse_verdict(
-                    completion.text, allowed_sources=sources, actor=tr.ARBITER
+                    data, allowed_sources=sources, actor=tr.ARBITER
                 )
             except SheetError as exc:
                 counters["failures"] += 1
@@ -1160,6 +1416,7 @@ class Session:
                     "verdict": verdict.to_dict(),
                     "council_size": len(present),
                     "reduced_council": len(present) < len(self.council.students),
+                    **repair_report.as_payload(),
                 },
                 completion=completion,
                 seat=seat,
@@ -1296,6 +1553,7 @@ class Session:
         tokens_in = sum(e.tokens_in for e in events)
         tokens_out = sum(e.tokens_out for e in events)
         cost = sum(e.cost_est for e in events)
+        cache = tr.CacheSummary.from_events(events)
         present = [s for s in self.council.student_seats() if records[s].present]
         baseline = single_model_baseline(
             self.council, events, override=self.config.baseline_model,
@@ -1317,6 +1575,11 @@ class Session:
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
                 "cost_est": cost,
+                "cache": cache.to_dict(),
+                "malformation": {
+                    model: rate.to_dict()
+                    for model, rate in tr.malformation_by_model(events).items()
+                },
                 **baseline.to_dict(),
                 "disagreement": spread.to_dict(),
                 "single_lab": self.council.single_lab,
@@ -1353,6 +1616,7 @@ class Session:
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             cost_est=cost,
+            cache=cache,
             failed_reason=failed_reason,
             parse_attempts=counters["attempts"],
             parse_failures=counters["failures"],

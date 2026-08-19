@@ -53,10 +53,50 @@ class ModelCost:
 
     input_per_mtok: float = 0.0
     output_per_mtok: float = 0.0
+    # Cached input, priced separately because providers do. Zero means "not
+    # given a cache price", and the fallbacks below then bill those tokens at
+    # the full input rate — overstating the bill rather than inventing a
+    # discount, which is the direction a cost estimate should err.
+    cache_read_per_mtok: float = 0.0
+    cache_write_per_mtok: float = 0.0
 
-    def estimate(self, tokens_in: int, tokens_out: int) -> float:
+    def estimate(
+        self,
+        tokens_in: int,
+        tokens_out: int,
+        cache_read: int = 0,
+        cache_write: int = 0,
+    ) -> float:
+        """USD for one call. `tokens_in` is the uncached remainder only.
+
+        The cache arguments default to zero, so every existing two-argument
+        call keeps its old meaning and its old number.
+        """
+        read_rate = self.cache_read_per_mtok or self.input_per_mtok
+        write_rate = self.cache_write_per_mtok or self.input_per_mtok
         return (
-            tokens_in * self.input_per_mtok + tokens_out * self.output_per_mtok
+            tokens_in * self.input_per_mtok
+            + cache_read * read_rate
+            + cache_write * write_rate
+            + tokens_out * self.output_per_mtok
+        ) / 1_000_000
+
+    def uncached_estimate(
+        self,
+        tokens_in: int,
+        tokens_out: int,
+        cache_read: int = 0,
+        cache_write: int = 0,
+    ) -> float:
+        """What the same call would have cost with no caching at all.
+
+        The counterfactual the report prints beside the real figure. Every
+        token the model read is billed at the full input rate, which is
+        precisely what would have happened had no breakpoint been set.
+        """
+        return (
+            (tokens_in + cache_read + cache_write) * self.input_per_mtok
+            + tokens_out * self.output_per_mtok
         ) / 1_000_000
 
     @property
