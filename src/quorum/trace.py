@@ -42,6 +42,7 @@ PROBE_RESULT = "probe_result"
 ARBITER_ABSENT = "arbiter_absent"
 SESSION_CLOSED = "session_closed"
 ATTEMPT_DISCARDED = "attempt_discarded"
+INJECTION_FLAGGED = "injection_flagged"
 
 EVENT_TYPES = frozenset(
     {
@@ -72,6 +73,16 @@ EVENT_TYPES = frozenset(
         ARBITER_ABSENT,
         SESSION_CLOSED,
         ATTEMPT_DISCARDED,
+        # INJECTION_FLAGGED: the shield noticed something in text that one
+        # participant wrote and another was about to read. It is an event
+        # rather than a field on the sheet for the reason everything else here
+        # is an event: the trace is the auditor's record, and "was this
+        # session's verdict written after somebody tried to instruct the
+        # arbiter?" is a question the file has to be able to answer on its
+        # own. Flagging is not blocking, so a session can carry these events
+        # and still be perfectly sound; what it cannot do is carry them
+        # silently.
+        INJECTION_FLAGGED,
     }
 )
 

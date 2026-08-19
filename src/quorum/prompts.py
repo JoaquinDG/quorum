@@ -10,10 +10,17 @@ The four `*_HEADER` constants are load-bearing. They are real lines of the
 real prompts, and the offline `MockProvider` keys off them to decide which
 round it is being asked to play. A test-only marker would drift from the
 prompt it stands in for; a line the model actually reads cannot.
+
+One exception to "in one file", and it is deliberate: the sentence that tells
+a reader the fenced block is data rather than instructions lives in `shield`,
+next to the fence it explains. Splitting them would let the wording drift away
+from the mechanism it describes, which is the failure mode a preamble like
+that has.
 """
 
 from __future__ import annotations
 
+from . import shield
 from .sheets import MAX_CLAIMS, AnswerSheet
 
 SHEET_PROMPT_HEADER = "You are sitting a silent exam. Fill in the answer sheet below."
@@ -69,7 +76,13 @@ def build_sheet_prompt(task: str) -> str:
 # --------------------------------------------------------------------------
 
 
-def render_sheet(sheet: AnswerSheet, label: str, *, include_nuance: bool = False) -> str:
+def render_sheet(
+    sheet: AnswerSheet,
+    label: str,
+    *,
+    include_nuance: bool = False,
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
+) -> str:
     """Render a sheet under an anonymous label.
 
     `nuance` is off by default, and the default is what the critique rounds
@@ -87,15 +100,37 @@ def render_sheet(sheet: AnswerSheet, label: str, *, include_nuance: bool = False
     text, so it is the one channel through which a student could signal its
     identity to the arbiter.
     """
-    lines = [f"--- Sheet {label} ---", f"position: {sheet.position}", "claims:"]
-    lines += [f"  {c.number}. {c.text}" for c in sheet.claims]
+    def safe(text: str, where: str) -> str:
+        """Every field of a foreign sheet goes through the shield.
+
+        Rendering is the exact moment one participant's text becomes another
+        participant's prompt, so it is the one place armoring cannot be
+        forgotten: there is no path from a sheet to a prompt that does not
+        pass through here. Findings are dropped on the floor at this level
+        and re-derived by `session`, which owns the trace. Duplicating the
+        scan costs a few microseconds and buys a renderer that stays pure.
+        """
+        return shield.armor(text, where=where, policy=policy)[0]
+
+    lines = [
+        f"--- Sheet {label} ---",
+        f"position: {safe(sheet.position, 'position')}",
+        "claims:",
+    ]
+    lines += [f"  {c.number}. {safe(c.text, f'claim {c.number}')}" for c in sheet.claims]
     lines.append("assumptions:")
-    lines += [f"  - {a}" for a in sheet.assumptions]
+    lines += [f"  - {safe(a, f'assumptions[{i}]')}" for i, a in enumerate(sheet.assumptions)]
     lines.append("would_change_my_mind:")
-    lines += [f"  - {w}" for w in sheet.would_change_my_mind]
+    lines += [
+        f"  - {safe(w, f'would_change_my_mind[{i}]')}"
+        for i, w in enumerate(sheet.would_change_my_mind)
+    ]
     lines.append(f"confidence: {sheet.confidence:.2f}")
     if include_nuance and sheet.nuance:
-        lines.append(f"nuance (not critiqued by anyone): {sheet.nuance}")
+        # The field with the widest opening and the most valuable target: it
+        # reaches the arbiter, unblinded, and no critic is allowed to answer
+        # it. Armoring it is not optional in a way the others are.
+        lines.append(f"nuance (not critiqued by anyone): {safe(sheet.nuance, 'nuance')}")
     return "\n".join(lines)
 
 
@@ -129,9 +164,27 @@ address this format has.
 """
 
 
-def build_critique_prompt(task: str, blinded: dict[str, AnswerSheet]) -> str:
+def build_critique_prompt(
+    task: str,
+    blinded: dict[str, AnswerSheet],
+    *,
+    nonce: str = "",
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
+) -> str:
+    """Assemble round 2, with the peer sheets fenced off from the instructions.
+
+    `nonce` comes from `shield.fence_nonce(session, recipient, round)` and is
+    what makes the fence worth having: it is derived per recipient, so no
+    participant has ever seen the marker that closes the block this critic
+    will read. Default empty renders the pre-shield prompt, which is what the
+    probe harness and any trace comparison want.
+    """
     sheets = "\n\n".join(
-        render_sheet(sheet, label) for label, sheet in sorted(blinded.items())
+        render_sheet(sheet, label, policy=policy)
+        for label, sheet in sorted(blinded.items())
+    )
+    sheets = shield.fenced_block(
+        sheets, nonce=nonce, kind="PEER-ANSWER-SHEETS", policy=policy
     )
     return CRITIQUE_PROMPT_TEMPLATE.format(task=task, sheets=sheets)
 
@@ -150,7 +203,12 @@ least one objection.
 
 
 def build_skeptic_critique_prompt(
-    task: str, blinded: dict[str, AnswerSheet], target_label: str
+    task: str,
+    blinded: dict[str, AnswerSheet],
+    target_label: str,
+    *,
+    nonce: str = "",
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
 ) -> str:
     """The critique prompt plus a standing instruction to attack the leader.
 
@@ -165,7 +223,10 @@ def build_skeptic_critique_prompt(
     a single bit of identity information. Whether it helps is an empirical
     question: the effect on position-change rate is what settles it.
     """
-    base = build_critique_prompt(task, blinded)
+    # The seat instruction is appended *after* the fenced block on purpose:
+    # a standing order that arrived before the untrusted material would be
+    # the last thing a forged "end of data" marker could try to talk over.
+    base = build_critique_prompt(task, blinded, nonce=nonce, policy=policy)
     return base + SKEPTIC_INSTRUCTION.format(label=target_label)
 
 
@@ -264,15 +325,37 @@ _NO_OBJECTIONS = (
 
 
 def build_revision_prompt(
-    task: str, sheet_json: str, objections: list[tuple[str, int, str]]
+    task: str,
+    sheet_json: str,
+    objections: list[tuple[str, int, str]],
+    *,
+    nonce: str = "",
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
 ) -> str:
-    """`objections` are (critic_label, claim_n, argument), already blinded."""
+    """`objections` are (critic_label, claim_n, argument), already blinded.
+
+    Round 3 is the round where the frame and the payload sit closest together.
+    Each objection is introduced by a `--- Critic X on your claim N ---` line
+    the engine writes, and the text immediately under it is written by another
+    model, so an argument that opens with a line of its own in that shape is
+    forging a critic that never spoke. `render_sheet` handles the sheet case;
+    this handles the objection case.
+
+    The student's own sheet is not armored. It is the one piece of untrusted
+    text in the prompt that is untrusted *to somebody else*: a model cannot
+    inject into itself, and rewriting a student's own words before handing
+    them back would corrupt the diff that round 3 exists to produce.
+    """
     if objections:
         blocks = [
-            f"--- Critic {critic} on your claim {claim_n} ---\n{argument}"
+            f"--- Critic {critic} on your claim {claim_n} ---\n"
+            + shield.armor(argument, where=f"objection from {critic}", policy=policy)[0]
             for critic, claim_n, argument in objections
         ]
         rendered = "\n\n".join(blocks)
+        rendered = shield.fenced_block(
+            rendered, nonce=nonce, kind="PEER-OBJECTIONS", policy=policy
+        )
     else:
         rendered = _NO_OBJECTIONS
     return REVISION_PROMPT_TEMPLATE.format(
@@ -376,7 +459,13 @@ def build_verdict_repair_prompt(original: str, reason: str, sources: tuple[str, 
     )
 
 
-def build_verdict_prompt(task: str, transcript: str) -> str:
+def build_verdict_prompt(
+    task: str,
+    transcript: str,
+    *,
+    nonce: str = "",
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
+) -> str:
     """Assemble the arbiter's briefing.
 
     The arbiter sees seat labels ("Student 1"), never model names. It is not a
@@ -386,7 +475,12 @@ def build_verdict_prompt(task: str, transcript: str) -> str:
     argument on the page. The session maps seats back to models afterwards, so
     the minority report is still attributable in the trace and the report.
     """
-    return VERDICT_PROMPT_TEMPLATE.format(task=task, transcript=transcript)
+    return VERDICT_PROMPT_TEMPLATE.format(
+        task=task,
+        transcript=shield.fenced_block(
+            transcript, nonce=nonce, kind="DEBATE-TRANSCRIPT", policy=policy
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -419,7 +513,14 @@ THE MODELS THAT TOOK PART (one sheet each)
 """
 
 
-def build_probe_prompt(task: str, sheets: str, roster: tuple[str, ...]) -> str:
+def build_probe_prompt(
+    task: str,
+    sheets: str,
+    roster: tuple[str, ...],
+    *,
+    nonce: str = "",
+    policy: shield.ShieldPolicy = shield.DEFAULT_POLICY,
+) -> str:
     """Brief the prober, generously.
 
     It gets the candidate roster and the fact that authorship is one-to-one.
@@ -428,5 +529,9 @@ def build_probe_prompt(task: str, sheets: str, roster: tuple[str, ...]) -> str:
     whole purpose is to be published even when it is bad news.
     """
     return PROBE_PROMPT_TEMPLATE.format(
-        task=task, sheets=sheets, roster="\n".join(f"  - {m}" for m in roster)
+        task=task,
+        sheets=shield.fenced_block(
+            sheets, nonce=nonce, kind="SHEETS-UNDER-AUDIT", policy=policy
+        ),
+        roster="\n".join(f"  - {m}" for m in roster),
     )

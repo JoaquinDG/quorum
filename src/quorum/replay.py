@@ -22,6 +22,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import shield
 from . import trace as tr
 from .blinding import BlindingRound
 from .sheets import AnswerSheet, Verdict, parse_sheet, parse_verdict
@@ -79,6 +80,7 @@ class ReplayedSession:
     discarded: list[dict[str, Any]] = field(default_factory=list)
     closed: dict[str, Any] = field(default_factory=dict)
     probes: list[dict[str, Any]] = field(default_factory=list)
+    findings: list[shield.Finding] = field(default_factory=list)
     tokens_in: int = 0
     tokens_out: int = 0
     cost_est: float = 0.0
@@ -86,6 +88,14 @@ class ReplayedSession:
     @property
     def present_students(self) -> list[ReplayedStudent]:
         return [s for s in self.students.values() if s.present]
+
+    @property
+    def flagged(self) -> bool:
+        return bool(self.findings)
+
+    @property
+    def worst_finding(self) -> str:
+        return shield.worst(self.findings)
 
     @property
     def council_size(self) -> int:
@@ -249,6 +259,14 @@ def replay(events: list[tr.TraceEvent]) -> ReplayedSession:
 
         elif event.event_type == tr.PROBE_RESULT:
             session.probes.append(dict(payload))
+
+        elif event.event_type == tr.INJECTION_FLAGGED:
+            # Rebuilt as `Finding` objects rather than left as dicts: a
+            # renderer that has to know the payload's key names is a renderer
+            # the trace format has failed.
+            session.findings.extend(
+                shield.Finding.from_dict(f) for f in payload.get("findings", [])
+            )
 
         elif event.event_type == tr.SESSION_CLOSED:
             session.closed = dict(payload)
