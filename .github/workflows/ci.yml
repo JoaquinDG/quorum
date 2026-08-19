@@ -34,6 +34,12 @@ jobs:
       - name: Cost accounting
         run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_accounting.py' -v
 
+      # Round 2 pastes one model's text into another model's prompt, three
+      # times a session. If the fence stops being applied, or a detector
+      # starts eating ordinary debate, nothing else in the suite notices.
+      - name: Prompt injection shield
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_shield.py' -v
+
       # A rate cannot be asserted one task at a time, and "<10% of a mixed
       # workload convenes" is an acceptance criterion.
       - name: Convening eval
