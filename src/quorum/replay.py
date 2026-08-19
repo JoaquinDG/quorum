@@ -22,6 +22,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import shield
 from . import trace as tr
 from .blinding import BlindingRound
 from .sheets import AnswerSheet, Verdict, parse_sheet, parse_verdict
@@ -79,13 +80,41 @@ class ReplayedSession:
     discarded: list[dict[str, Any]] = field(default_factory=list)
     closed: dict[str, Any] = field(default_factory=dict)
     probes: list[dict[str, Any]] = field(default_factory=list)
+    findings: list[shield.Finding] = field(default_factory=list)
     tokens_in: int = 0
     tokens_out: int = 0
     cost_est: float = 0.0
+    cache: tr.CacheSummary = field(default_factory=tr.CacheSummary)
+    events_seen: list = field(default_factory=list)
+    """Rebuilt from the events, like everything else on this object.
+
+    A trace written before cache fields existed replays to an all-zero
+    summary, so an old record reads as "no caching observed" rather than
+    failing to load."""
+
+    @property
+    def malformation(self) -> dict:
+        """Per-model malformation for this session, recomputed from events."""
+        return tr.malformation_by_model(self.events_seen)
+
+    @property
+    def cache_saved(self) -> float:
+        """USD the cache saved on this session. Can be negative — see
+        `CacheSummary.saved`; a session that wrote entries and never read
+        them paid a premium for nothing, and the report says so."""
+        return self.cache.saved
 
     @property
     def present_students(self) -> list[ReplayedStudent]:
         return [s for s in self.students.values() if s.present]
+
+    @property
+    def flagged(self) -> bool:
+        return bool(self.findings)
+
+    @property
+    def worst_finding(self) -> str:
+        return shield.worst(self.findings)
 
     @property
     def council_size(self) -> int:
@@ -172,6 +201,8 @@ def replay(events: list[tr.TraceEvent]) -> ReplayedSession:
         )
 
     session = ReplayedSession(session_id=events[0].session_id)
+    session.cache = tr.CacheSummary.from_events(events)
+    session.events_seen = list(events)
     for event in events:
         session.tokens_in += event.tokens_in
         session.tokens_out += event.tokens_out
@@ -249,6 +280,14 @@ def replay(events: list[tr.TraceEvent]) -> ReplayedSession:
 
         elif event.event_type == tr.PROBE_RESULT:
             session.probes.append(dict(payload))
+
+        elif event.event_type == tr.INJECTION_FLAGGED:
+            # Rebuilt as `Finding` objects rather than left as dicts: a
+            # renderer that has to know the payload's key names is a renderer
+            # the trace format has failed.
+            session.findings.extend(
+                shield.Finding.from_dict(f) for f in payload.get("findings", [])
+            )
 
         elif event.event_type == tr.SESSION_CLOSED:
             session.closed = dict(payload)

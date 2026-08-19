@@ -34,6 +34,42 @@ jobs:
       - name: Cost accounting
         run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_accounting.py' -v
 
+      # Round 2 pastes one model's text into another model's prompt, three
+      # times a session. If the fence stops being applied, or a detector
+      # starts eating ordinary debate, nothing else in the suite notices.
+      - name: Prompt injection shield
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_shield.py' -v
+
+      # The pipeline end to end with the network switched off. These run
+      # against recorded fixtures and are the reason engine changes no longer
+      # need an API key or a budget to be exercised in CI. The suite disables
+      # sockets itself, so a provider that starts calling out fails here
+      # rather than quietly billing somebody.
+      - name: Offline pipeline (no keys, no spend)
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_offline_pipeline.py' -v
+
+      # Seat recovery. The 2026-08-19 incident is a fixture now: a critique
+      # cut mid-object must be repaired rather than costing the seat its round.
+      - name: Seat recovery
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_repair.py' -v
+
+      # Resume must never re-run a round the trace already paid for.
+      - name: Checkpoint and resume
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_resume.py' -v
+
+      # The schemas restate the format contract. If they drift from what
+      # sheets.py enforces, the constrained path and the fallback path stop
+      # agreeing about what a valid response is.
+      - name: Structured output
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_structured_output.py' -v
+
+      # Fixtures are generated, not hand-edited. If regenerating them changes
+      # the bytes, the checked-in copies are stale.
+      - name: Fixtures are reproducible
+        run: |
+          PYTHONPATH=src python tests/fixtures/_generate.py
+          git diff --exit-code tests/fixtures/
+
       # A rate cannot be asserted one task at a time, and "<10% of a mixed
       # workload convenes" is an acceptance criterion.
       - name: Convening eval

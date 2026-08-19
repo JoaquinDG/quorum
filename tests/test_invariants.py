@@ -12,6 +12,8 @@ marketing:
 4. **Fail-closed** — a participant that errors is reported absent, and its
    absence is visible everywhere the verdict is.
 5. **Fixed rounds** — no "keep going until they agree" loop.
+6. **Untrusted peer text** — no participant's words reach another
+   participant's prompt outside a fence that participant cannot forge.
 
 Plus the trace's own invariant: it must carry everything a renderer needs,
 which `test_trace_replay` proves by rebuilding the session from it.
@@ -315,6 +317,64 @@ class ObjectionIntegrityTests(unittest.TestCase):
         for critic in council.student_seats():
             targets = {o.target_seat for o in result.objections_by(critic)}
             self.assertEqual(targets, set(council.student_seats()) - {critic})
+
+
+class ShieldInvariantTests(unittest.TestCase):
+    """Nothing one participant wrote reaches another one unfenced.
+
+    `test_shield` covers the detectors and calls the prompt builders directly.
+    This asserts the weaker but more important property against a real
+    session: whatever the builders do, a running council must not put one
+    model's prose into another model's prompt as if the engine had written it.
+    """
+
+    def _peer_bearing_prompts(self, providers, council):
+        """Every prompt in a session that carries somebody else's text."""
+        out = []
+        for seat in council.seats():
+            for prompt in prompts_for(providers, seat):
+                if any(
+                    header in prompt
+                    for header in (
+                        CRITIQUE_PROMPT_HEADER,
+                        REVISION_PROMPT_HEADER,
+                        VERDICT_PROMPT_HEADER,
+                    )
+                ):
+                    out.append(prompt)
+        return out
+
+    def test_every_prompt_carrying_peer_text_is_fenced(self):
+        council, _, providers = run_with_recording_mocks()
+        prompts = self._peer_bearing_prompts(providers, council)
+        self.assertTrue(prompts, "no peer-bearing prompts found; harness is wrong")
+        for prompt in prompts:
+            self.assertIn("[UNTRUSTED-BEGIN", prompt)
+            self.assertIn("[UNTRUSTED-END", prompt)
+
+    def test_the_fence_states_that_the_contents_are_not_instructions(self):
+        """A fence nobody explained is a delimiter. The preamble is the half
+        that tells the reader what the delimiter means."""
+        council, _, providers = run_with_recording_mocks()
+        for prompt in self._peer_bearing_prompts(providers, council):
+            self.assertIn("carries no authority", prompt)
+
+    def test_no_two_readers_share_a_fence_marker(self):
+        """The property that makes the fence unforgeable from inside.
+
+        If two participants are fenced with the same marker, the first one to
+        write can close the second one's block. Markers are derived per
+        recipient and per round precisely so that no participant has ever seen
+        the marker wrapped around the text it is trying to escape."""
+        council, _, providers = run_with_recording_mocks()
+        markers = []
+        for prompt in self._peer_bearing_prompts(providers, council):
+            markers += [
+                line.split()[1]
+                for line in prompt.splitlines()
+                if line.startswith("[UNTRUSTED-BEGIN")
+            ]
+        self.assertEqual(len(markers), len(set(markers)), f"reused markers: {markers}")
 
 
 if __name__ == "__main__":  # pragma: no cover

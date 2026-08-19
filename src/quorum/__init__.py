@@ -43,6 +43,28 @@ from .prompts import (
     build_verdict_prompt,
     render_sheet,
 )
+from .shield import (
+    CRITICAL,
+    DEFAULT_POLICY,
+    INFO,
+    OFF,
+    STRICT_POLICY,
+    SUSPECT,
+    Finding,
+    InjectionRejected,
+    ShieldPolicy,
+    UNTRUSTED_PREAMBLE,
+    armor,
+    fence,
+    fence_nonce,
+    fenced_block,
+    neutralize,
+    scan,
+    scan_objection,
+    scan_sheet,
+    scan_task,
+    worst,
+)
 from .providers.http import AnthropicProvider, OpenAICompatibleProvider
 from .providers.base import (
     Completion,
@@ -137,7 +159,20 @@ from .sheets import (
     parse_sheet,
     parse_verdict,
 )
-from .trace import EVENT_TYPES, TraceEvent, TraceWriter, group_sessions, read_trace
+from .repair import RepairReport, recover
+from .resume import Checkpoint, ResumeError, SessionLocked, TraceLock
+from .resume import inspect as inspect_trace
+from .schemas import SCHEMA_FOR_ROUND, SCHEMAS
+from .trace import (
+    EVENT_TYPES,
+    CacheSummary,
+    MalformationRate,
+    TraceEvent,
+    TraceWriter,
+    group_sessions,
+    malformation_by_model,
+    read_trace,
+)
 
 __version__ = "0.1.0"
 
@@ -216,13 +251,46 @@ __all__ = [
     "Task",
     "TaskOutcome",
     "TaskSignals",
+    "CacheSummary",
+    "Checkpoint",
+    "MalformationRate",
+    "RepairReport",
+    "ResumeError",
+    "SCHEMAS",
+    "SCHEMA_FOR_ROUND",
+    "SessionLocked",
     "TraceEvent",
+    "TraceLock",
+    "inspect_trace",
+    "malformation_by_model",
+    "recover",
     "TraceWriter",
     "VERDICT_PROMPT_HEADER",
     "VERIFIABLE_TYPES",
     "Verdict",
     "blind_map",
     "build_blinding",
+    # the shield
+    "CRITICAL",
+    "DEFAULT_POLICY",
+    "Finding",
+    "INFO",
+    "InjectionRejected",
+    "OFF",
+    "STRICT_POLICY",
+    "SUSPECT",
+    "ShieldPolicy",
+    "UNTRUSTED_PREAMBLE",
+    "armor",
+    "fence",
+    "fence_nonce",
+    "fenced_block",
+    "neutralize",
+    "scan",
+    "scan_objection",
+    "scan_sheet",
+    "scan_task",
+    "worst",
     "build_critique_prompt",
     "build_probe_prompt",
     "build_revision_prompt",

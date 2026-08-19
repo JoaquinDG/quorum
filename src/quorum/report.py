@@ -153,6 +153,20 @@ def render_markdown(session: ReplayedSession, *, top_objections: int = 3) -> str
     for warning in session.council_warnings:
         out += [f"> ⚠️ **Single-lab council.** {warning.capitalize()}.", ""]
 
+    if session.findings:
+        # Reported rather than buried. A reader weighing this verdict is
+        # entitled to know that somebody in the room wrote text aimed at the
+        # room, and a bare count says nothing, so the patterns are named.
+        patterns = sorted({f.pattern for f in session.findings})
+        out += [
+            f"> \U0001f6e1\ufe0f **Shield flagged {len(session.findings)} item(s)** "
+            f"({session.worst_finding}): {', '.join(patterns)}. "
+            "Participant text that reads like an instruction to its reader. "
+            "Structural forgeries were neutralized before delivery and wording "
+            "was left as written; the trace carries the full record.",
+            "",
+        ]
+
     out += ["## The answer", ""]
     if session.verdict:
         out += [session.verdict.final_answer, "", f"*{session.verdict.confidence_note}*", ""]
@@ -236,6 +250,34 @@ def render_markdown(session: ReplayedSession, *, top_objections: int = 3) -> str
                    f"${session.baseline_cost_est:.4f} |")
     if session.cost_multiple is not None:
         out.append(f"| Multiple | {session.cost_multiple:.1f}x a single answer |")
+    malformed = {m: r for m, r in session.malformation.items() if r.malformed}
+    if malformed:
+        # Named per model, because this failure concentrates: it has been the
+        # cheapest seat in the lineup every time it has happened, and a
+        # session-wide average would hide exactly that.
+        for model, rate in sorted(malformed.items()):
+            out.append(
+                f"| Malformed responses ({model}) | {rate.malformed} of "
+                f"{rate.attempts} ({rate.rate:.0%}) — {rate.repaired} repaired, "
+                f"{rate.discarded} discarded |"
+            )
+    cache = session.cache
+    if cache.gross_tokens_in:
+        # Printed for any session that read input, including one where nothing
+        # cached — a visible 0% is the finding, not an empty row. A trace
+        # written before these fields existed replays with `uncached` equal to
+        # the effective cost, so it reports a saving of exactly zero rather
+        # than an unearned one.
+        out.append(f"| Input served from cache | {cache.cache_hit_share:.0%} "
+                   f"({cache.cache_read:,} of {cache.gross_tokens_in:,} tokens) |")
+        out.append(f"| Same session, uncached | ${cache.uncached_cost_est:.4f} "
+                   f"({cache.saved:+.4f} from caching) |")
+        if cache.cache_write and not cache.cache_read:
+            # The bounded worst case the plan asked to have named rather than
+            # optimized away: a session short enough that every entry it wrote
+            # expired unread still paid the write premium.
+            out.append("| | *cache written but never read — this session paid "
+                       "the write premium for nothing* |")
     if session.discarded:
         out.append(f"| Re-prompts | {len(session.discarded)} "
                    f"(${session.repair_cost_est:.4f}) |")
@@ -385,6 +427,15 @@ def render_html(session: ReplayedSession, *, top_objections: int = 3) -> str:
             f'<div class="banner"><strong>Single-lab council.</strong> {_e(warning)}. '
             "Agreement here is weaker evidence than agreement across families.</div>"
         )
+    if session.findings:
+        patterns = sorted({f.pattern for f in session.findings})
+        parts.append(
+            '<div class="banner"><strong>Shield flagged '
+            f"{len(session.findings)} item(s)</strong> ({_e(session.worst_finding)}): "
+            f"{_e(', '.join(patterns))}. Participant text that reads like an "
+            "instruction to its reader. Structural forgeries were neutralized "
+            "before delivery and wording was left as written.</div>"
+        )
     if not session.cost_is_complete:
         parts.append(
             '<div class="banner"><strong>Incomplete cost.</strong> '
@@ -523,6 +574,22 @@ def render_html(session: ReplayedSession, *, top_objections: int = 3) -> str:
         )
     if session.cost_multiple is not None:
         rows.append(("Multiple", f"{session.cost_multiple:.1f}× a single answer"))
+    cache = session.cache
+    if cache.gross_tokens_in:
+        rows.append((
+            "Input served from cache",
+            f"{cache.cache_hit_share:.0%} "
+            f"({cache.cache_read:,} of {cache.gross_tokens_in:,} tokens)",
+        ))
+        rows.append((
+            "Same session, uncached",
+            f"${cache.uncached_cost_est:.4f} ({cache.saved:+.4f} from caching)",
+        ))
+        if cache.cache_write and not cache.cache_read:
+            rows.append((
+                "Cache note",
+                "written but never read — paid the write premium for nothing",
+            ))
     if session.discarded:
         rows.append(
             ("Re-prompts", f"{len(session.discarded)} (${session.repair_cost_est:.4f})")

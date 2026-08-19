@@ -249,6 +249,28 @@ class _HTTPProviderBase:
         raise last
 
 
+def _openai_cached_tokens(usage: dict) -> int:
+    """Cached prompt tokens, across the dialects of "OpenAI-compatible".
+
+    Two shapes are in use by vendors this adapter already serves:
+
+    - OpenAI (and Google's compatibility layer): a nested
+      `prompt_tokens_details.cached_tokens`.
+    - DeepSeek: flat `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`.
+
+    Checked in that order and independently, so a vendor that grows the other
+    shape starts reporting without an adapter change. A vendor that reports
+    neither yields 0, which is indistinguishable from a genuine cache miss —
+    the conservative direction, since it prices those tokens at full rate.
+    """
+    details = usage.get("prompt_tokens_details") or {}
+    if isinstance(details, dict) and details.get("cached_tokens"):
+        return int(details["cached_tokens"])
+    if usage.get("prompt_cache_hit_tokens"):
+        return int(usage["prompt_cache_hit_tokens"])
+    return 0
+
+
 class AnthropicProvider(_HTTPProviderBase):
     """Adapter for the Anthropic Messages API.
 
@@ -271,18 +293,40 @@ class AnthropicProvider(_HTTPProviderBase):
         self.base_url = base_url.rstrip("/")
         self.version = version
 
-    def complete(self, model_id: str, prompt: str, max_tokens: int = 2048) -> Completion:
+    # Anthropic constrains output by forcing a tool call whose input schema is
+    # the contract. Declared as a capability rather than assumed, so a caller
+    # can feature-detect instead of catching a 400.
+    schema_mode = "tool"
+
+    def complete(
+        self,
+        model_id: str,
+        prompt: str,
+        max_tokens: int = 2048,
+        *,
+        schema: tuple[str, dict] | None = None,
+    ) -> Completion:
         if not self.api_key:
             raise ProviderConfigError(
                 "ANTHROPIC_API_KEY is not set", provider=self.name, model_id=model_id
             )
-        body = json.dumps(
-            {
-                "model": model_id,
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-        ).encode()
+        payload: dict[str, object] = {
+            "model": model_id,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if schema is not None:
+            name, definition = schema
+            # The prompt is unchanged — the schema is an additional constraint
+            # on the reply, not a replacement for the instructions. Keeping the
+            # prose identical is what leaves the cacheable prefix intact.
+            payload["tools"] = [{
+                "name": name,
+                "description": "Return the response in the format the prompt describes.",
+                "input_schema": definition,
+            }]
+            payload["tool_choice"] = {"type": "tool", "name": name}
+        body = json.dumps(payload).encode()
         data = self._request(
             f"{self.base_url}/v1/messages",
             body,
@@ -293,11 +337,20 @@ class AnthropicProvider(_HTTPProviderBase):
             },
             model_id,
         )
+        blocks = data.get("content", [])
         text = "".join(
-            block.get("text", "")
-            for block in data.get("content", [])
-            if block.get("type") == "text"
+            block.get("text", "") for block in blocks if block.get("type") == "text"
         )
+        if schema is not None:
+            # Forced tool use returns the object under `input` rather than as
+            # text. Re-serialised so everything downstream — repair, parsing,
+            # the trace — sees exactly the shape it always saw.
+            for block in blocks:
+                if block.get("type") == "tool_use" and isinstance(
+                    block.get("input"), dict
+                ):
+                    text = json.dumps(block["input"], ensure_ascii=False)
+                    break
         usage = data.get("usage", {})
         if data.get("stop_reason") == "max_tokens":
             raise ProviderTruncated(
@@ -306,11 +359,15 @@ class AnthropicProvider(_HTTPProviderBase):
                 provider=self.name,
                 model_id=model_id,
             )
+        # Anthropic already reports `input_tokens` as the uncached remainder,
+        # so it needs no adjustment — the two cache counters sit beside it.
         return Completion(
             text=text,
             model_id=model_id,
             input_tokens=usage.get("input_tokens", 0),
             output_tokens=usage.get("output_tokens", 0),
+            cache_read_tokens=usage.get("cache_read_input_tokens", 0) or 0,
+            cache_write_tokens=usage.get("cache_creation_input_tokens", 0) or 0,
         )
 
 
@@ -333,6 +390,7 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
         env_var: str = "OPENAI_API_KEY",
         max_tokens_param: str | None = None,
         chat_path: str = "/v1/chat/completions",
+        schema_mode: str | None = "auto",
         **transport,
     ) -> None:
         super().__init__(**transport)
@@ -357,19 +415,56 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
         self._max_tokens_param = max_tokens_param or (
             "max_completion_tokens" if "api.openai.com" in base_url else "max_tokens"
         )
+        # Structured output support is not uniform across "OpenAI-compatible".
+        # OpenAI itself takes a full JSON schema; DeepSeek takes JSON mode and
+        # no schema. Guessing wrong is a 400 on every call, so the default is
+        # inferred from the host and can always be set explicitly:
+        #
+        #   "json_schema"  — constrain generation to the schema
+        #   "json_object"  — valid JSON guaranteed, shape is not
+        #   None           — no structured support; prompt instructions only
+        # "auto" infers from the host; an explicit None means the caller
+        # knows this vendor has no structured support and wants the prompt-only
+        # path. Those are different intentions and must not collapse into one.
+        self.schema_mode = (
+            ("json_schema" if "api.openai.com" in base_url else "json_object")
+            if schema_mode == "auto"
+            else schema_mode
+        )
 
-    def complete(self, model_id: str, prompt: str, max_tokens: int = 2048) -> Completion:
+    def complete(
+        self,
+        model_id: str,
+        prompt: str,
+        max_tokens: int = 2048,
+        *,
+        schema: tuple[str, dict] | None = None,
+    ) -> Completion:
         if not self.api_key:
             raise ProviderConfigError(
                 f"{self.env_var} is not set", provider=self.name, model_id=model_id
             )
-        body = json.dumps(
-            {
-                "model": model_id,
-                self._max_tokens_param: max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-        ).encode()
+        payload: dict[str, object] = {
+            "model": model_id,
+            self._max_tokens_param: max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if schema is not None and self.schema_mode:
+            name, definition = schema
+            if self.schema_mode == "json_schema":
+                payload["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": name, "schema": definition, "strict": True,
+                    },
+                }
+            else:
+                # JSON mode: the reply is guaranteed to parse, not to be the
+                # right shape. Worth having anyway — it is the seat that
+                # emitted an unterminated object, and this is exactly the
+                # failure JSON mode removes. The schema check still runs.
+                payload["response_format"] = {"type": "json_object"}
+        body = json.dumps(payload).encode()
         data = self._request(
             f"{self.base_url}{self.chat_path}",
             body,
@@ -393,9 +488,21 @@ class OpenAICompatibleProvider(_HTTPProviderBase):
                 provider=self.name,
                 model_id=model_id,
             )
+        cache_read = _openai_cached_tokens(usage)
+        prompt_tokens = usage.get("prompt_tokens", 0) or 0
+        # `prompt_tokens` counts the cached part too, unlike Anthropic's
+        # `input_tokens`. Subtract it so `input_tokens` means the same thing on
+        # every adapter: what is billed at the full input rate. Clamped at zero
+        # because a vendor whose two numbers disagree must not be allowed to
+        # report negative full-price input and credit the session.
         return Completion(
             text=text,
             model_id=model_id,
-            input_tokens=usage.get("prompt_tokens", 0),
+            input_tokens=max(0, prompt_tokens - cache_read),
             output_tokens=usage.get("completion_tokens", 0),
+            cache_read_tokens=cache_read,
+            # Neither OpenAI nor DeepSeek bills a cache *write*: the prefix is
+            # cached as a side effect of an ordinary request, at no premium.
+            # Zero here is the real number, not a gap in the adapter.
+            cache_write_tokens=0,
         )

@@ -80,10 +80,38 @@ class ProviderTruncated(ProviderError):
 
 @dataclass(frozen=True)
 class Completion:
+    """One model reply, with the token accounting the bill is derived from.
+
+    `input_tokens` is the **uncached** remainder: tokens billed at the full
+    input rate. Cached tokens are carried separately, so
+
+        gross input = input_tokens + cache_read_tokens + cache_write_tokens
+
+    That normalization is done by the adapters, and it is not cosmetic. The
+    three providers disagree about what their own "prompt tokens" number
+    means: Anthropic reports the uncached remainder, while OpenAI and DeepSeek
+    report the *total* with the cached part folded in. Recording them as they
+    arrive would price an OpenAI cache hit at full rate and an Anthropic one
+    at zero, from fields that look interchangeable. Every adapter converts to
+    the definition above; `providers.http` is where each conversion lives.
+
+    Both cache fields default to zero, which is also what a provider that
+    reports nothing yields — "no caching happened" and "this provider does not
+    say" are the same number here, deliberately: neither one may be reported
+    as a saving.
+    """
+
     text: str
     model_id: str
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+
+    @property
+    def gross_input_tokens(self) -> int:
+        """Everything the model read, cached or not."""
+        return self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
 
 
 class Provider(Protocol):
