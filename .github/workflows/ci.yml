@@ -19,6 +19,12 @@ jobs:
       # its owner can repoint at any time, and this workflow runs on every
       # pull request from every fork. The trailing comment is the readable
       # version, and Dependabot bumps the SHA and the comment together.
+      #
+      # Both pins are v7, which is the first major of either action that
+      # ships a node24 entry point. The older ones still ran, but every job
+      # carried a deprecation annotation saying the runner was forcing them
+      # onto node24 anyway, which is the state right before they stop
+      # running at all.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
