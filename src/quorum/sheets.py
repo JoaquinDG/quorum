@@ -148,6 +148,99 @@ def extract_json(text: str, *, actor: str = "") -> Any:
 
 
 # --------------------------------------------------------------------------
+# double-escaped text
+# --------------------------------------------------------------------------
+
+_JSON_ESCAPE = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+_ESCAPE_CHARS = {
+    '"': '"',
+    "\\": "\\",
+    "/": "/",
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+}
+
+MIN_LITERAL_ESCAPES = 2
+"""How many literal `\\n` sequences make double-escaping the better explanation.
+
+One is a model discussing an escape sequence. Several, in a field that then
+contains no line break at all, is a model that escaped its output twice."""
+
+
+def _decode_escape(match: re.Match[str]) -> str:
+    body = match.group(1)
+    if body[0] == "u":
+        return chr(int(body[1:], 16))
+    return _ESCAPE_CHARS[body]
+
+
+def unescape_json_escapes(text: str) -> str:
+    """Decode standard JSON escapes that arrived as literal characters.
+
+    One left-to-right pass, and `re.sub` never rescans what it substituted, so
+    `\\\\n` — an escaped backslash followed by the letter n — decodes to a
+    backslash and an n rather than to a newline. A second pass, or a decoder
+    that looked at its own output, would eat a backslash the model meant.
+    """
+    return _JSON_ESCAPE.sub(_decode_escape, text)
+
+
+def _has_bare_quote(text: str) -> bool:
+    """Does a double quote appear here that no backslash escaped?"""
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\\":
+            index += 2  # skip whatever the backslash claimed
+            continue
+        if char == '"':
+            return True
+        index += 1
+    return False
+
+
+def looks_double_escaped(text: Any) -> bool:
+    """Is this a text field whose escapes were encoded one time too many?
+
+    The signature is narrow on purpose, and every clause of it is load-bearing.
+
+    *Several literal `\\n` sequences, and not one real line break.* Prose that
+    genuinely discusses `\\n` still normally contains a paragraph break
+    somewhere, and a field that was escaped twice contains none by
+    construction: every break it meant to have is sitting in the text as two
+    characters.
+
+    *And no bare double quote.* This is what separates a doubled encoding from
+    a model quoting a JSON payload back at us, which is an ordinary thing to do
+    on a technical question and which the first two clauses alone misread as
+    double-escaped. The tell is that an extra encoding pass is uniform. It
+    reaches a field's quotes exactly as it reaches its newlines, so genuinely
+    double-escaped text carries its quotes as `\\"` and never bare. Text that
+    pairs literal `\\n` with an unescaped `"` was not encoded twice; those
+    escapes belong to the JSON it is showing you, and decoding them rewrites
+    the model's example into something that no longer parses, which inverts the
+    point it was making.
+
+    It is still a heuristic, which is why nothing trusts it silently: the only
+    caller is `repair.recover`, which reports every decode it makes.
+    """
+    if not isinstance(text, str):
+        return False
+    if "\n" in text or text.count("\\n") < MIN_LITERAL_ESCAPES:
+        return False
+    return not _has_bare_quote(text)
+
+
+def normalize_escapes(text: str) -> str:
+    """Decode a text field that arrived double-escaped; leave every other alone."""
+    return unescape_json_escapes(text) if looks_double_escaped(text) else text
+
+
+# --------------------------------------------------------------------------
 # the sheet
 # --------------------------------------------------------------------------
 
