@@ -10,12 +10,12 @@ round, and its "run as-is" position survived because nobody was left to attack
 it.
 
 **Repair here is syntactic and nothing else.** It closes brackets, drops
-separators that lead nowhere, and escapes quotes that were never escaped. It
-never invents a claim, completes a sentence, guesses a number, or fills a
-missing field. The distinction matters more than it looks: a repaired object
-that reads as complete but was silently finished by this module would be a
-fabricated argument attributed to a real model, which is precisely the failure
-the project exists to make impossible.
+separators that lead nowhere, escapes quotes that were never escaped, and
+decodes escapes a model applied twice. It never invents a claim, completes a
+sentence, guesses a number, or fills a missing field. The distinction matters
+more than it looks: a repaired object that reads as complete but was silently
+finished by this module would be a fabricated argument attributed to a real
+model, which is precisely the failure the project exists to make impossible.
 
 So the contract is: content survives verbatim or not at all. Where truncation
 cost us a trailing fragment, the fragment is dropped rather than guessed, and
@@ -31,7 +31,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from .sheets import SheetParseError, extract_json
+from .sheets import SheetParseError, extract_json, normalize_escapes
 
 # How far back the truncation repair will walk looking for a point the object
 # can be legally closed. Bounded because the search tries a parse per
@@ -275,6 +275,68 @@ def _repair_truncated(text: str) -> tuple[Any, bool] | None:
     return None
 
 
+def _decode_double_escaped(value: Any) -> tuple[Any, bool]:
+    """Decode every double-escaped string in an already-parsed value.
+
+    The failure this exists for is not a parse failure, which is what made it
+    survive: the response is *valid JSON* whose string values were escaped one
+    time too many, so `json.loads` succeeds and hands back prose with `\\n` and
+    `\\"` sitting in it as characters. Nothing downstream can tell that from a
+    model that meant to write a backslash, and the report renders it verbatim
+    into a wall of text with no paragraph breaks.
+
+    Returns the value and whether anything changed. The structure is rebuilt
+    rather than mutated, so a caller still holding the parsed original — the
+    recorded-provider fixtures do — sees exactly what it parsed.
+    """
+    if isinstance(value, str):
+        decoded = normalize_escapes(value)
+        return decoded, decoded != value
+    if isinstance(value, list):
+        out_list = []
+        changed = False
+        for item in value:
+            new, item_changed = _decode_double_escaped(item)
+            out_list.append(new)
+            changed = changed or item_changed
+        return out_list, changed
+    if isinstance(value, dict):
+        out_dict = {}
+        changed = False
+        for key, item in value.items():
+            new, item_changed = _decode_double_escaped(item)
+            out_dict[key] = new
+            changed = changed or item_changed
+        return out_dict, changed
+    return value, False
+
+
+def _finish(
+    value: Any,
+    steps: list[str],
+    *,
+    truncated: bool = False,
+    dropped: bool = False,
+) -> tuple[Any, RepairReport]:
+    """The single exit: decode doubled escapes, then report what was done.
+
+    Every successful path goes through here, including the clean one, because
+    a doubled escape is invisible to the parse and so arrives on the clean path
+    as often as on a repaired one.
+    """
+    value, decoded = _decode_double_escaped(value)
+    if decoded:
+        steps = [*steps, "decoded_double_escaped"]
+    if not steps and not truncated:
+        return value, CLEAN
+    return value, RepairReport(
+        repaired=True,
+        truncated=truncated,
+        dropped_trailing=dropped,
+        steps=tuple(steps),
+    )
+
+
 # --------------------------------------------------------------------------
 # the entry point
 # --------------------------------------------------------------------------
@@ -287,14 +349,16 @@ def recover(text: Any, *, actor: str = "") -> tuple[Any, RepairReport]:
     repair cannot produce JSON — the caller then re-asks or marks the seat
     absent exactly as it did before this module existed.
 
-    The clean path is first and untouched: a well-formed response takes the
-    same route through `extract_json` it always took, and comes back with an
-    empty report. Nothing about the common case changes.
+    The clean path is first: a well-formed response takes the same route
+    through `extract_json` it always took, and comes back with an empty report.
+    The one thing that can now change on that path is a doubled escape, which
+    parses cleanly and is therefore not caught by anything else — and when it
+    is decoded the report says so, like every other repair here.
     """
     if isinstance(text, (dict, list)):
-        return text, CLEAN
+        return _finish(text, [])
     try:
-        return extract_json(text, actor=actor), CLEAN
+        return _finish(extract_json(text, actor=actor), [])
     except SheetParseError as exc:
         # Rebound deliberately: Python unbinds the `as` name when the except
         # block ends, and this error is re-raised much further down as the
@@ -324,9 +388,7 @@ def recover(text: Any, *, actor: str = "") -> tuple[Any, RepairReport]:
             candidate = nxt
             steps.append(name)
         try:
-            return json.loads(candidate), RepairReport(
-                repaired=True, steps=tuple(steps)
-            )
+            return _finish(json.loads(candidate), steps)
         except json.JSONDecodeError:
             continue
 
@@ -336,11 +398,6 @@ def recover(text: Any, *, actor: str = "") -> tuple[Any, RepairReport]:
         steps.append("closed_truncated_json")
         if dropped:
             steps.append("dropped_incomplete_trailing_value")
-        return value, RepairReport(
-            repaired=True,
-            truncated=True,
-            dropped_trailing=dropped,
-            steps=tuple(steps),
-        )
+        return _finish(value, steps, truncated=True, dropped=dropped)
 
     raise original

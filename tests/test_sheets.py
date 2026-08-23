@@ -23,6 +23,11 @@ from quorum import (
     parse_sheet,
     parse_verdict,
 )
+from quorum.sheets import (
+    looks_double_escaped,
+    normalize_escapes,
+    unescape_json_escapes,
+)
 
 VALID = {
     "position": "We should refactor the pipeline in place rather than rebuild it",
@@ -392,6 +397,62 @@ class VerdictParsingTests(unittest.TestCase):
                 json.dumps({"final_answer": "yes", "minority_report": []}),
                 allowed_sources=self.sources,
             )
+
+
+class DoubleEscapeDetection(unittest.TestCase):
+    """The heuristic behind `decoded_double_escaped`, tested at its edges.
+
+    `repair.recover` is the only caller and it reports every decode, so a miss
+    here costs a wall of unbroken text and a false positive costs a rewritten
+    quotation. Both are cheaper than a silent rewrite, which is why the
+    detection lives behind a reported repair rather than inside `parse_sheet`.
+    """
+
+    def test_doubled_prose_is_detected(self):
+        self.assertTrue(looks_double_escaped("First.\\n\\nSecond."))
+
+    def test_real_line_breaks_rule_it_out(self):
+        self.assertFalse(looks_double_escaped("First.\\n\\nSecond.\nThird."))
+
+    def test_one_escape_is_below_the_threshold(self):
+        self.assertFalse(looks_double_escaped("Split on \\n here."))
+
+    def test_a_bare_quote_rules_it_out(self):
+        """Quoted JSON pairs literal escapes with unescaped quotes."""
+        self.assertFalse(looks_double_escaped('{"a": "x\\ny", "b": "p\\nq"}'))
+
+    def test_escaped_quotes_do_not_rule_it_out(self):
+        """A doubled encoding is uniform: its own quotes arrive as \\" too."""
+        self.assertTrue(looks_double_escaped('He said \\"go\\".\\n\\nThen left.'))
+
+    def test_non_strings_are_not_strings(self):
+        self.assertFalse(looks_double_escaped(None))
+        self.assertFalse(looks_double_escaped(42))
+
+    def test_unescaping_does_not_rescan_its_own_output(self):
+        """`\\\\n` is an escaped backslash then an n, not a newline."""
+        self.assertEqual(unescape_json_escapes("a\\\\nb"), "a\\nb")
+
+    def test_unicode_escapes_decode(self):
+        self.assertEqual(unescape_json_escapes("caf\\u00e9"), "café")
+
+    def test_normalize_leaves_ordinary_text_identical(self):
+        text = "An ordinary answer.\n\nWith a real break."
+        self.assertIs(normalize_escapes(text), text)
+
+
+class ParseSheetDoesNotRewriteText(unittest.TestCase):
+    """`parse_sheet` reads; it does not repair.
+
+    Replay and resume call it directly on trace payloads. If it decoded, a
+    replay would render text the session never produced and nothing would say
+    so, which is the failure `replay.py` exists to make impossible.
+    """
+
+    def test_a_doubled_field_is_left_for_the_repair_layer(self):
+        doubled = dict(VALID, position="Rebuild it.\\n\\nThe schema is the reason.")
+        sheet = parse_sheet(json.dumps(doubled), actor="student_1")
+        self.assertEqual(sheet.position, "Rebuild it.\\n\\nThe schema is the reason.")
 
 
 if __name__ == "__main__":  # pragma: no cover
