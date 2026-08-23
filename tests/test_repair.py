@@ -149,6 +149,77 @@ class RepairNeverInventsContent(unittest.TestCase):
         self.assertEqual(r1, r2)
 
 
+class DoubleEscapingIsDecodedAndReported(unittest.TestCase):
+    """Valid JSON that was encoded one time too many.
+
+    This one never raised, which is how it survived: `json.loads` succeeds and
+    hands back prose with `\\n` sitting in it as two characters, and the report
+    renders that verbatim as a wall of text with no paragraph breaks.
+    """
+
+    def test_a_doubled_field_is_decoded(self):
+        value, _ = recover(json.dumps({"answer": "First para.\\n\\nSecond para."}))
+        self.assertEqual(value["answer"], "First para.\n\nSecond para.")
+
+    def test_the_decode_is_reported_not_silent(self):
+        """The module's contract: a repair nobody can see is not allowed."""
+        _, report = recover(json.dumps({"answer": "one\\n\\ntwo"}))
+        self.assertTrue(report.repaired)
+        self.assertIn("decoded_double_escaped", report.steps)
+
+    def test_it_is_caught_on_the_clean_path(self):
+        """It parses, so it arrives clean, so the clean path has to look."""
+        _, report = recover('{"answer": "one\\\\n\\\\ntwo"}')
+        self.assertIn("decoded_double_escaped", report.steps)
+
+    def test_a_dict_handed_in_directly_is_still_decoded(self):
+        value, report = recover({"answer": "one\\n\\ntwo"})
+        self.assertEqual(value["answer"], "one\n\ntwo")
+        self.assertIn("decoded_double_escaped", report.steps)
+
+    def test_it_reaches_nested_claims(self):
+        value, _ = recover(json.dumps({"claims": [{"text": "a\\n\\nb"}]}))
+        self.assertEqual(value["claims"][0]["text"], "a\n\nb")
+
+    def test_keys_are_left_alone(self):
+        value, _ = recover(json.dumps({"a\\n\\nb": "c\\n\\nd"}))
+        self.assertEqual(list(value), ["a\\n\\nb"])
+
+    def test_ordinary_prose_is_not_touched(self):
+        value, report = recover(json.dumps({"answer": "One para.\n\nTwo para."}))
+        self.assertEqual(value["answer"], "One para.\n\nTwo para.")
+        self.assertFalse(report.repaired)
+
+    def test_a_single_mention_of_an_escape_is_not_enough(self):
+        """A model explaining `\\n` has not double-encoded anything."""
+        value, report = recover(json.dumps({"answer": "Split on \\n to fix it."}))
+        self.assertEqual(value["answer"], "Split on \\n to fix it.")
+        self.assertFalse(report.repaired)
+
+    def test_a_quoted_json_payload_survives_verbatim(self):
+        """The false positive that made the bare-quote clause necessary.
+
+        Quoting JSON is an ordinary thing to do on a technical question, and
+        decoding its escapes rewrites the example into something that no longer
+        parses — inverting the point the model was making.
+        """
+        answer = 'Return {"a": "line1\\nline2", "b": "x\\ny"} from the endpoint.'
+        value, report = recover(json.dumps({"answer": answer}))
+        self.assertEqual(value["answer"], answer)
+        self.assertFalse(report.repaired)
+
+    def test_decoding_is_idempotent(self):
+        once, _ = recover(json.dumps({"answer": "a\\n\\nb"}))
+        twice, report = recover(once)
+        self.assertEqual(once, twice)
+        self.assertFalse(report.repaired)
+
+    def test_a_truncated_and_doubled_response_reports_both(self):
+        _, report = recover('{"answer": "a\\\\n\\\\nb", "next": ')
+        self.assertTrue(report.truncated)
+        self.assertIn("decoded_double_escaped", report.steps)
+
+
 class ReportIsDisclosable(unittest.TestCase):
     def test_clean_report_adds_nothing_to_a_payload(self):
         self.assertEqual(RepairReport().as_payload(), {})
