@@ -184,8 +184,9 @@ def main(argv: list[str] | None = None) -> int:
         missing = report.incomplete_arms
         arms = sorted({arm for _, arm in missing})
         print(f"  NOT A RESULT — {len(missing)} task/arm pair(s) produced no scored")
-        print(f"  answer, affecting: {', '.join(arms)}. The scores below compare")
-        print("  against arms that did not answer. Do not publish them.")
+        print(f"  answer, affecting: {', '.join(arms)}. {len(report.excluded)} of")
+        print(f"  {len(report.outcomes)} task(s) are excluded entirely; the means")
+        print(f"  below are over the remaining {report.compared}. Do not publish them.")
         print()
     if not args.real:
         print("  MOCK RUN — the numbers below measure the harness, not the models.")
@@ -205,13 +206,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n  written to {os.path.relpath(args.out)}")
 
     # Harness health, not model quality: every task must have produced a
-    # scored answer in every arm, or the run proves nothing either way.
-    incomplete = [
-        (o.task.key, arm)
-        for o in report.outcomes
-        for arm in ("quorum", "single", "self_critique")
-        if o.arms[arm].error or not o.arms[arm].scores
-    ]
+    # scored answer in every arm, or the run proves nothing either way. Asks
+    # the report rather than re-deriving the predicate, because a second copy
+    # of "did this arm produce a result" is how the two came to disagree.
+    incomplete = report.incomplete_arms
     if incomplete:
         print(f"\nFAIL: {len(incomplete)} arm(s) produced no scored answer: "
               f"{incomplete[:5]}")

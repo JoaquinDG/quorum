@@ -30,10 +30,23 @@ from quorum import (
     load_tasks,
     run_benchmark,
 )
-from quorum.providers.base import MockProvider
+from quorum.benchmark import judge
+from quorum.providers.base import Completion, MockProvider
 
 TASKS_PATH = os.path.join(os.path.dirname(__file__), "..", "evals", "judgment_tasks.json")
 JUDGE = Seat("judge-model", "judgelab", ModelCost(5.0, 25.0))
+
+
+class FixedJudge:
+    """A judge whose reply the test dictates, to exercise a partial scoring."""
+
+    name = JUDGE.provider
+
+    def __init__(self, reply: str) -> None:
+        self.reply = reply
+
+    def complete(self, model_id, prompt, max_tokens=2048):
+        return Completion(text=self.reply, model_id=model_id)
 
 
 def bench_pool(council, judge=JUDGE):
@@ -261,11 +274,13 @@ class HarnessTests(unittest.TestCase):
                 )
             ]
         )
+        # The errored arms contribute no zeros. `single` contributes nothing
+        # either: its one task is not comparable, so there is nothing to
+        # average. It scored, but not against anyone.
         self.assertEqual(report.mean("quorum"), 0.0)
-        self.assertEqual(report.mean("single"), 1.0)
-        self.assertEqual(report.winner_check(), "single") if hasattr(
-            report, "winner_check"
-        ) else self.assertEqual(report.outcomes[0].winner(), "single")
+        self.assertEqual(report.mean("single"), 0.0)
+        # Previously "single", which is the walkover this item exists to stop.
+        self.assertEqual(report.outcomes[0].winner(), "none")
 
 
 class ReportingTests(unittest.TestCase):
@@ -397,3 +412,152 @@ class IncompleteRunTests(unittest.TestCase):
         )
         self.assertTrue(report.comparable)
         self.assertNotIn("NOT A RESULT", report.render_markdown())
+
+    def test_the_surviving_arm_is_not_handed_the_task(self):
+        """The walkover, at the level the tally actually reports."""
+        report = self.report_with_a_missing_arm()
+        self.assertEqual(report.outcomes[0].winner(), "none")
+        self.assertEqual(report.wins()["quorum"], 0)
+        self.assertEqual(report.wins()["none"], 1)
+
+
+class UnscoredArmTests(unittest.TestCase):
+    """An arm that answered but was never scored is absent, not zero.
+
+    The 2026-08-19 run's dominant failure: 16 tasks showed `err` in all three
+    arms at once, the signature of a judge call failing rather than of three
+    independent provider failures. A judge that omits a label leaves the arm
+    with an answer, no error, and an empty score dict, and `total()` reads a
+    missing criterion as 0.0. So the arm was reported as missing by the banner
+    and simultaneously averaged in as a real 0.00, printed in the per-task
+    table as a score, and beaten by whichever arm the judge did reach.
+    """
+
+    def judged_by(self, reply: str, task=None):
+        """Score three real answers with a judge whose reply we control."""
+        task = task or tiny_task()
+        arms = [ArmResult(arm, f"answer from {arm}") for arm in ARMS]
+        judge(task, arms, JUDGE, ProviderPool([FixedJudge(reply)]),
+              shuffle_seed=task.key)
+        return arms
+
+    def test_an_omitted_label_is_recorded_as_an_error(self):
+        # The judge scores A and B and silently drops C.
+        arms = self.judged_by(json.dumps({
+            "A": {"specific": 0.9, "conditions": 0.9, "counter": 0.9},
+            "B": {"specific": 0.8, "conditions": 0.8, "counter": 0.8},
+        }))
+        errored = [a for a in arms if a.error]
+        self.assertEqual(len(errored), 1, "the dropped answer carries no error")
+        self.assertIn("no usable scores", errored[0].error)
+        self.assertFalse(errored[0].complete)
+
+    def test_scores_matching_no_criterion_are_an_error_not_a_zero(self):
+        arms = self.judged_by(json.dumps({
+            label: {"not_a_criterion": 1.0} for label in ("A", "B", "C")
+        }))
+        for arm in arms:
+            self.assertTrue(arm.error, "an unscorable arm passed as scored")
+            self.assertEqual(arm.scores, {})
+
+    def test_a_fully_scored_reply_still_passes(self):
+        arms = self.judged_by(json.dumps({
+            label: {"specific": 0.7, "conditions": 0.7, "counter": 0.7}
+            for label in ("A", "B", "C")
+        }))
+        for arm in arms:
+            self.assertEqual(arm.error, "")
+            self.assertTrue(arm.complete)
+
+    def test_an_unscored_arm_is_never_averaged_in_as_zero(self):
+        task = tiny_task()
+        full = {c.key: 0.8 for c in task.criteria}
+        report = BenchmarkReport(outcomes=[TaskOutcome(task=task, arms={
+            # answered, no error, and the judge never scored it
+            "quorum": ArmResult("quorum", "a real answer", scores={}),
+            "single": ArmResult("single", "x", scores=full),
+            "self_critique": ArmResult("self_critique", "y", scores=full),
+        })])
+        self.assertFalse(report.outcomes[0].arms["quorum"].complete)
+        self.assertFalse(report.comparable)
+        self.assertEqual(report.mean("quorum"), 0.0)
+        self.assertEqual(report.outcomes[0].winner(), "none")
+        self.assertEqual(report.incomplete_arms, [(task.key, "quorum")])
+
+
+class ExclusionRenderingTests(unittest.TestCase):
+    """H1's closing condition: the per-task table cannot show a score next to an err."""
+
+    def mixed_report(self):
+        """One task every arm answered, one where `single` did not."""
+        good, bad = tiny_task("good"), tiny_task("bad")
+        full = {c.key: 0.8 for c in good.criteria}
+        return BenchmarkReport(outcomes=[
+            TaskOutcome(task=good, arms={
+                "quorum": ArmResult("quorum", "a", scores=full, cost_est=0.10),
+                "single": ArmResult("single", "b", scores=full, cost_est=0.01),
+                "self_critique": ArmResult("self_critique", "c", scores=full,
+                                           cost_est=0.02),
+            }),
+            TaskOutcome(task=bad, arms={
+                "quorum": ArmResult("quorum", "a", scores=full, cost_est=0.10),
+                "single": ArmResult("single", "", error="out of credit",
+                                    cost_est=0.00),
+                "self_critique": ArmResult("self_critique", "c", scores=full,
+                                           cost_est=0.02),
+            }),
+        ])
+
+    def per_task_rows(self, markdown):
+        return [ln for ln in markdown.splitlines() if ln.startswith("| `")]
+
+    def test_no_row_shows_a_score_beside_an_err(self):
+        for row in self.per_task_rows(self.mixed_report().render_markdown()):
+            if "err" not in row:
+                continue
+            cells = [c.strip() for c in row.split("|")[2:5]]
+            offenders = [c for c in cells if c not in ("err", "n/c")]
+            self.assertEqual(
+                offenders, [],
+                f"a score is printed next to an err: {row}",
+            )
+
+    def test_an_excluded_task_names_no_winner(self):
+        rows = self.per_task_rows(self.mixed_report().render_markdown())
+        bad = next(r for r in rows if "`bad`" in r)
+        self.assertIn("excluded", bad)
+        self.assertNotIn("quorum", bad)
+
+    def test_excluded_tasks_are_counted_not_dropped(self):
+        report = self.mixed_report()
+        self.assertEqual(report.excluded, ["bad"])
+        self.assertEqual(report.compared, 1)
+        markdown = report.render_markdown()
+        self.assertIn("`bad`", markdown, "an excluded task vanished from the report")
+        self.assertIn("not compared", markdown)
+        data = report.to_dict()
+        self.assertEqual(data["tasks_excluded"], ["bad"])
+        self.assertEqual(data["tasks_compared"], 1)
+        self.assertEqual(data["tasks"], 2)
+
+    def test_means_are_over_compared_tasks_only(self):
+        report = self.mixed_report()
+        # quorum answered both, but only the shared task counts. Averaging it
+        # over two while `single` gets one is the comparison H1 forbids.
+        self.assertAlmostEqual(report.mean("quorum"), 0.8)
+        self.assertAlmostEqual(report.mean("single"), 0.8)
+
+    def test_cost_still_covers_the_excluded_task(self):
+        # The bill is the bill. Excluding a task from the score does not
+        # refund the tokens it burned.
+        self.assertAlmostEqual(self.mixed_report().cost("quorum"), 0.20)
+
+    def test_a_clean_run_carries_no_exclusion_legend(self):
+        council = demo_council()
+        report = run_benchmark(
+            [tiny_task()], council, bench_pool(council), JUDGE, is_mock=True
+        )
+        markdown = report.render_markdown()
+        self.assertEqual(report.excluded, [])
+        self.assertNotIn("not compared", markdown)
+        self.assertNotIn("n/c", markdown)

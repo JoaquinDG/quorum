@@ -166,6 +166,19 @@ class ArmResult:
     error: str = ""
     session: Any = None
 
+    @property
+    def complete(self) -> bool:
+        """Did this arm answer *and* get scored for it?
+
+        One predicate, because three used to disagree. `mean` and `winner`
+        asked "answered, no error"; `incomplete_arms` asked "no error, has
+        scores"; the per-task table asked "no error" alone. An arm the judge
+        answered about but never scored passed the first and failed the
+        second, so the same arm was reported as missing by the banner and
+        counted as a genuine 0.00 by the leaderboard underneath it.
+        """
+        return bool(self.answer) and not self.error and bool(self.scores)
+
     def total(self, criteria: Iterable[Criterion]) -> float:
         criteria = list(criteria)
         weight = sum(c.weight for c in criteria)
@@ -297,12 +310,21 @@ def judge(
         if not isinstance(raw, dict):
             arm.error = f"judge returned no scores for answer {label}"
             continue
-        arm.scores = {
+        scores = {
             key: min(1.0, max(0.0, float(value)))
             for key, value in raw.items()
             if key in valid and isinstance(value, (int, float))
             and not isinstance(value, bool)
         }
+        # A judge that omits a label, or answers it with keys matching no
+        # criterion, leaves an arm answered and unscored. That used to fall
+        # through as an empty dict, and `total` reads a missing criterion as
+        # 0.0, so an unjudged answer scored zero and handed the task to
+        # whichever arm the judge did get to. Absence is recorded as absence.
+        if not scores:
+            arm.error = f"judge returned no usable scores for answer {label}"
+            continue
+        arm.scores = scores
 
 
 # --------------------------------------------------------------------------
@@ -315,12 +337,31 @@ class TaskOutcome:
     task: JudgmentTask
     arms: dict[str, ArmResult]
 
+    @property
+    def comparable(self) -> bool:
+        """Did every arm answer this task and get scored for it?
+
+        A task where one arm is absent is not a task one arm won. The council
+        degrades to two students and carries on, exactly as fail-closed
+        intends; the single-model arm just fails. Scoring that pair against
+        each other measures which arm survives an outage, not which writes a
+        better answer.
+        """
+        return all(
+            self.arms.get(arm) is not None and self.arms[arm].complete for arm in ARMS
+        )
+
     def winner(self, criteria: Iterable[Criterion] | None = None) -> str:
+        # No walkovers. An incomparable task is reported as having no winner
+        # rather than crowning whoever turned up, and `wins()` tallies it
+        # under "none" so the count of excluded tasks stays in the result.
+        if not self.comparable:
+            return "none"
         criteria = list(criteria if criteria is not None else self.task.criteria)
         scored = {
             name: arm.total(criteria)
             for name, arm in self.arms.items()
-            if arm.answer and not arm.error
+            if arm.complete
         }
         if not scored:
             return "none"
@@ -338,10 +379,18 @@ class BenchmarkReport:
     judge_model: str = ""
 
     def mean(self, arm: str, *, neutral_only: bool = False) -> float:
+        """Mean over the tasks every arm answered, and no others.
+
+        Averaging each arm over whichever tasks it happened to survive
+        compares a full field against a partial one. Excluded tasks are
+        counted and named rather than dropped quietly; see `excluded`.
+        """
         values = []
         for outcome in self.outcomes:
+            if not outcome.comparable:
+                continue
             result = outcome.arms.get(arm)
-            if not result or result.error or not result.answer:
+            if not result or not result.complete:
                 continue
             criteria = (
                 outcome.task.neutral_criteria if neutral_only else outcome.task.criteria
@@ -350,6 +399,7 @@ class BenchmarkReport:
         return sum(values) / len(values) if values else 0.0
 
     def cost(self, arm: str) -> float:
+        """Every task, including the excluded ones. A failed call is still billed."""
         return sum(
             outcome.arms[arm].cost_est
             for outcome in self.outcomes
@@ -371,6 +421,8 @@ class BenchmarkReport:
         return {
             "is_mock": self.is_mock,
             "tasks": len(self.outcomes),
+            "tasks_compared": self.compared,
+            "tasks_excluded": list(self.excluded),
             "council": list(self.council_models),
             "single_model": self.single_model,
             "judge_model": self.judge_model,
@@ -390,8 +442,22 @@ class BenchmarkReport:
             (o.task.key, arm)
             for o in self.outcomes
             for arm in ARMS
-            if o.arms.get(arm) is None or o.arms[arm].error or not o.arms[arm].scores
+            if o.arms.get(arm) is None or not o.arms[arm].complete
         ]
+
+    @property
+    def excluded(self) -> list[str]:
+        """Task keys scored by no arm, because at least one arm was absent.
+
+        The count is part of the result. A run that quietly drops the tasks a
+        provider failed on reports the mean of the tasks that went well.
+        """
+        return [o.task.key for o in self.outcomes if not o.comparable]
+
+    @property
+    def compared(self) -> int:
+        """Tasks the leaderboard above is actually computed from."""
+        return len(self.outcomes) - len(self.excluded)
 
     @property
     def comparable(self) -> bool:
@@ -417,10 +483,11 @@ class BenchmarkReport:
                 "> **NOT A RESULT — arms are missing.**",
                 ">",
                 f"> {len(missing)} task/arm pair(s) produced no scored answer, "
-                f"affecting: {', '.join('`' + a + '`' for a in arms)}. Any score "
-                "below is a comparison against an opponent that did not answer, "
-                "and must not be read as a finding. Common cause: a provider "
-                "out of credit, or a model id that has been retired.",
+                f"affecting: {', '.join('`' + a + '`' for a in arms)}. "
+                f"{len(self.excluded)} of {len(self.outcomes)} task(s) are "
+                "therefore scored by no arm at all. Common cause: a provider "
+                "out of credit, a model id that has been retired, or a judge "
+                "call that failed and left every arm of a task unscored.",
                 "",
             ]
         if self.is_mock:
@@ -433,7 +500,9 @@ class BenchmarkReport:
                 "",
             ]
         out += [
-            f"- tasks: **{len(self.outcomes)}**",
+            f"- tasks: **{len(self.outcomes)}**"
+            + (f" ({self.compared} compared, {len(self.excluded)} excluded)"
+               if self.excluded else ""),
             f"- council: {', '.join(self.council_models)}",
             f"- single-model arm: {self.single_model}",
             f"- judge: {self.judge_model}",
@@ -474,15 +543,31 @@ class BenchmarkReport:
             cells = []
             for arm in ARMS:
                 result = outcome.arms.get(arm)
-                cells.append(
-                    "err" if (not result or result.error)
-                    else f"{result.total(outcome.task.criteria):.2f}"
-                )
+                if not result or not result.complete:
+                    cells.append("err")
+                elif not outcome.comparable:
+                    # This arm was scored, but a sibling was not, so the number
+                    # is not a comparison and is not printed as one. A score
+                    # sitting next to an `err` in the same row reads as a win.
+                    cells.append("n/c")
+                else:
+                    cells.append(f"{result.total(outcome.task.criteria):.2f}")
             out.append(
                 f"| `{outcome.task.key}` | " + " | ".join(cells)
-                + f" | {outcome.winner()} |"
+                + f" | {'excluded' if not outcome.comparable else outcome.winner()} |"
             )
         out.append("")
+        if self.excluded:
+            out += [
+                "`err` is an arm that produced no scored answer. `n/c` is an arm "
+                "that did, on a task another arm did not, so it is **not compared**: "
+                "a score printed beside an `err` reads as a win over an opponent "
+                f"that never answered. {len(self.excluded)} task(s) are excluded on "
+                f"this basis (`{'`, `'.join(self.excluded)}`), and every mean above "
+                f"is over the remaining {self.compared}. Costs are over all "
+                f"{len(self.outcomes)}, because a failed call is still billed.",
+                "",
+            ]
         return "\n".join(out)
 
 
