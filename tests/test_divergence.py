@@ -214,5 +214,76 @@ class SkepticSeatTests(unittest.TestCase):
         self.assertEqual(leading_sheet_label(blinded), "A")
 
 
+class MockSkepticBlindnessTests(unittest.TestCase):
+    """The mock cannot answer the skeptic question, and this pins that.
+
+    `MockProvider` dispatches on the round header and never reads the seat
+    instruction, so a paired offline session with the seat on and off is
+    byte-identical apart from the extra input tokens the instruction costs.
+    That produces "the seat only raises the bill" — the literal answer to the
+    open question about this seat — arrived at by construction rather than by
+    measurement.
+
+    Measured on 2026-08-17 across four paired tasks: zero delta on
+    position-change rate, objection count and objection text, and the seat
+    costing +97 input tokens. The exact figure is not asserted — prompt
+    wording moves it and it is not the point — but the shape is. These
+    assertions exist so that null result stays legible as a property of the
+    mock rather than as a finding about the seat. A later
+    run that reads a flat offline comparison as evidence about the seat has
+    the same failure available to it, and the seat's effect on real models is
+    unmeasured either way.
+
+    Teaching the mock to react to the instruction would manufacture the
+    opposite answer just as cheaply, so a failure here is not a licence to do
+    that: position change under pressure is a fact about models, and mocks
+    have none.
+    """
+
+    SKEPTIC = 2
+
+    def run_paired(self, skeptic):
+        council = demo_council()
+        pool = mock_pool(council)
+        config = SessionConfig(skeptic_seat=skeptic) if skeptic else None
+        result = convene(
+            TASK, council, pool, config=config, session_id=f"skeptic-mock-{skeptic}"
+        )
+        return result, council, pool
+
+    def setUp(self):
+        self.off, self.council, self.off_pool = self.run_paired(None)
+        self.on, _, self.on_pool = self.run_paired(self.SKEPTIC)
+
+    def critique_prompt(self, pool, seat):
+        student = self.council.students[seat - 1]
+        return [
+            prompt
+            for model, prompt in pool.get(student.provider).calls
+            if model == student.model_id and CRITIQUE_PROMPT_HEADER in prompt
+        ][0]
+
+    def test_the_instruction_reached_the_seat(self):
+        """Without this the null result below is plumbing, not blindness."""
+        self.assertIn(
+            "YOU HOLD THE SKEPTIC SEAT",
+            self.critique_prompt(self.on_pool, self.SKEPTIC),
+        )
+        self.assertNotIn(
+            "SKEPTIC SEAT", self.critique_prompt(self.off_pool, self.SKEPTIC)
+        )
+
+    def test_the_seat_changes_nothing_the_protocol_measures(self):
+        self.assertEqual(self.on.position_change_rate, self.off.position_change_rate)
+        self.assertEqual(
+            [o.argument for o in self.on.objections],
+            [o.argument for o in self.off.objections],
+        )
+
+    def test_the_only_difference_is_the_bill(self):
+        self.assertGreater(self.on.tokens_in, self.off.tokens_in)
+        self.assertEqual(self.on.tokens_out, self.off.tokens_out)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
