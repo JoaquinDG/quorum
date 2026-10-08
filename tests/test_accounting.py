@@ -19,9 +19,19 @@ was violated, because the property is what has to keep holding:
    corrupt one report, it makes both unreadable.
 6. A round-1 sheet carrying `changed_position` must be an error, not a field
    quietly ignored.
+
+Point 7 was added later, and not by the Phase 1 review:
+
+7. Malformation must measure the model's formatting, not our completion
+   budget. The same conflation as point 3, one layer up: a response the
+   budget cut off mid-object was repaired, then charged to the vendor by
+   `malformation_by_model`. The repo's own canonical malformation fixture
+   turned out to be a pure truncation, so the metric's headline example was
+   its counterexample.
 """
 
 import json
+import os
 import unittest
 
 from quorum import (
@@ -34,9 +44,16 @@ from quorum import (
     demo_council,
     mock_pool,
     parse_sheet,
+    render_markdown,
     replay,
 )
 from quorum import trace as tr
+from quorum.providers.recorded import (
+    council_from_trace,
+    recorded_session_id,
+    replay_pool,
+    task_of,
+)
 
 from test_session import (
     TASK,
@@ -275,3 +292,151 @@ class PerModelComplianceTests(unittest.TestCase):
     def test_it_is_serialisable_in_stats(self):
         result, _ = run(default_script(), "per-model-stats")
         json.dumps(result.stats())
+
+
+def _event(model, *, steps=(), truncated=False, repaired=True):
+    """One scored attempt by `model`, carrying the repair record it would have
+    written. Built by hand rather than provoked through a session because the
+    unit under test is the derivation, and a mock cannot be made to truncate
+    against a budget it never reads."""
+    payload = {"model_id": model}
+    if repaired:
+        payload["repair"] = {
+            "repaired": True,
+            "truncated": truncated,
+            "dropped_trailing": False,
+            "steps": list(steps),
+        }
+    return tr.TraceEvent(
+        ts=0.0, session_id="trunc", round=1, actor="Student 1",
+        event_type=tr.SHEET_SUBMITTED, payload=payload,
+        tokens_in=100, tokens_out=50,
+    )
+
+
+class TruncationIsNotMalformationTests(unittest.TestCase):
+    """A budget we set is not a format the model missed.
+
+    The same conflation as `ComplianceIsNotUptimeTests`, one layer up and
+    found later. The adapter was fixed when a hard truncation came back empty
+    and was recorded as a malformed sheet; a soft truncation, meaning partial
+    JSON that repair closes, still reached `malformation_by_model` and was
+    charged to the vendor. The metric exists to answer "can this model hold the
+    format?", so an answer about our completion budget is not a smaller
+    version of the right answer, it is a different question.
+    """
+
+    def test_a_repair_that_only_closed_a_truncation_is_not_malformation(self):
+        rates = tr.malformation_by_model([
+            _event("seat", steps=("closed_truncated_json",), truncated=True),
+        ])
+        rate = rates["seat"]
+        self.assertEqual(rate.malformed, 0)
+        self.assertEqual(rate.rate, 0.0)
+        self.assertEqual(rate.truncated, 1)
+        self.assertEqual(rate.truncation_rate, 1.0)
+
+    def test_dropping_an_incomplete_trailing_value_is_also_ours(self):
+        rates = tr.malformation_by_model([
+            _event("seat", truncated=True, steps=(
+                "closed_truncated_json", "dropped_incomplete_trailing_value",
+            )),
+        ])
+        self.assertEqual(rates["seat"].malformed, 0)
+        self.assertEqual(rates["seat"].truncated, 1)
+
+    def test_a_fence_or_a_stray_quote_is_still_the_model_s(self):
+        """The control. Without this the fix could be 'count nothing'."""
+        for step in ("stripped_wrapper", "dropped_trailing_commas",
+                     "escaped_inner_quotes"):
+            with self.subTest(step=step):
+                rates = tr.malformation_by_model([_event("seat", steps=(step,))])
+                self.assertEqual(rates["seat"].malformed, 1, step)
+                self.assertEqual(rates["seat"].truncated, 0, step)
+
+    def test_a_truncation_that_also_needed_a_real_repair_counts_as_both(self):
+        """Neither fact cancels the other: the model emitted a bad quote *and*
+        we cut it off, so the seat is answerable for one and we for the other.
+        """
+        rates = tr.malformation_by_model([
+            _event("seat", truncated=True, steps=(
+                "escaped_inner_quotes", "closed_truncated_json",
+            )),
+        ])
+        self.assertEqual(rates["seat"].malformed, 1)
+        self.assertEqual(rates["seat"].truncated, 1)
+
+    def test_repaired_never_exceeds_malformed(self):
+        """`recovered_share` divides one by the other, so excluding truncation
+        from only the denominator would push a share above 1.0."""
+        rates = tr.malformation_by_model([
+            _event("seat", steps=("closed_truncated_json",), truncated=True),
+            _event("seat", steps=("escaped_inner_quotes",)),
+        ])
+        rate = rates["seat"]
+        self.assertLessEqual(rate.repaired, rate.malformed)
+        self.assertLessEqual(rate.recovered_share, 1.0)
+
+    def test_a_seat_that_only_truncated_still_appears_in_the_table(self):
+        """It must not vanish: a silent zero would be indistinguishable from a
+        clean seat, which is the reassuring direction."""
+        rates = tr.malformation_by_model([
+            _event("seat", steps=("closed_truncated_json",), truncated=True),
+        ])
+        self.assertIn("seat", rates)
+
+    def test_the_split_is_serialisable(self):
+        rates = tr.malformation_by_model([
+            _event("seat", steps=("closed_truncated_json",), truncated=True),
+        ])
+        payload = rates["seat"].to_dict()
+        json.dumps(payload)
+        self.assertEqual(payload["truncated"], 1)
+        self.assertEqual(payload["malformed"], 0)
+
+
+class TheRecordedIncidentIsReattributedTests(unittest.TestCase):
+    """The 2026-08-19 incident, recounted.
+
+    `malformed_seat.jsonl` is this repo's canonical malformation fixture and
+    the reason the repair module exists. Replayed with repair on, it used to
+    publish "Malformed responses (model-gamma): 2 of 3 (67%)", and both
+    repairs were `closed_truncated_json` alone. The fixture that motivated the
+    metric was the metric's own counterexample.
+
+    Reclassified from the trace as recorded: nothing was re-run, because
+    `repair.truncated` and `repair.steps` have been in the trace since repair
+    shipped. Replay completeness is what made the correction free.
+    """
+
+    @staticmethod
+    def _replayed():
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "fixtures", "malformed_seat.jsonl",
+        )
+        events = tr.read_trace(path)
+        council, providers = council_from_trace(events), replay_pool(events)
+        result = Session(council, providers).run(
+            task_of(events), session_id=recorded_session_id(events)
+        )
+        return replay(result.events)
+
+    def test_the_cut_off_seat_is_no_longer_charged_with_malformation(self):
+        session = self._replayed()
+        gamma = session.malformation["model-gamma"]
+        self.assertEqual(gamma.malformed, 0)
+        self.assertEqual(gamma.truncated, 2)
+
+    def test_the_other_seats_are_unaffected(self):
+        """The fix must not have been 'stop counting'."""
+        session = self._replayed()
+        for model in ("model-alpha", "model-beta"):
+            self.assertEqual(session.malformation[model].malformed, 0)
+            self.assertEqual(session.malformation[model].truncated, 0)
+
+    def test_the_report_calls_the_budget_ours(self):
+        session = self._replayed()
+        body = render_markdown(session)
+        self.assertIn("Cut off by our completion budget (model-gamma)", body)
+        self.assertNotIn("Malformed responses (model-gamma)", body)
