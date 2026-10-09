@@ -10,7 +10,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 490 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 500 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -359,12 +359,16 @@ Phase 1 shipped green — 142 tests, every acceptance criterion met — and a re
 5. **Session ids could collide** inside one clock tick. Not a cosmetic problem: `replay` refuses a file holding two sessions under one id, so a collision doesn't corrupt one report — it makes both unreadable.
 6. **A round-1 sheet could declare `changed_position`** and have it silently ignored, in a parser whose whole stated posture is rejecting unexpected fields.
 
-Then the evals caught three more, each from a different direction:
+Then the evals caught four more, each from a different direction:
 
 7. **The convening rule was measuring dialect, not ambiguity.** A genuine judgement call ("we can either hire two seniors or four juniors — which is the better bet?") scored *zero* ambiguity because the heuristics only recognised "should we".
 8. **The same bug, at scale, from the benchmark.** A test asserting that every benchmark task would actually convene found that **16 of 20 were declined** — hand-written judgement calls, explicitly typed, scored 0.75–0.9, refused because they open "Do we rebuild…" rather than "Should we rebuild…". Patching in one more verb would have been the same bug rescheduled a third time. The fix was structural in two places: ambiguity is now detected as two *families* (a question that asks what to do, or one that puts alternatives on the table) rather than a list of phrasings, and a **supplied** classification is now weighted far above the keyword markers that exist to approximate it. The module had always claimed supplied values were authoritative; the scoring quietly overrode them.
 9. **The disagreement score called a unanimous council "sharply contested."** Found by pointing the schema at real models for the first time. Demoted to a wording-spread measure rather than deleted, because deleting it would hide the finding. Full write-up above.
 10. **The mock prober scored 3 standard deviations below chance.** Its permutation was hashed from the prompt's tail — the roster and the JSON rule, byte-identical in every session — so one fixed permutation was reused throughout. A probe reading "better than random" is not a thing, and an artifact in the *blinding metric* is the worst place to leave one.
+
+And one came from re-reading a metric against the repo's own fixtures:
+
+11. **Malformation was measuring our completion budget.** Finding 3 again, one layer up. The adapter was taught about truncation when a reasoning model spent its whole budget thinking and returned empty content; a *soft* truncation, partial JSON that `repair` can close, still reached the derived per-model malformation rate and was charged to the vendor. The demonstration was sitting in the repo: `tests/fixtures/malformed_seat.jsonl` is this project's canonical malformation fixture and the reason the repair module exists, and replaying it published "Malformed responses (model-gamma): 2 of 3 (67%)" when both repairs were `closed_truncated_json` alone. The fixture that motivated the metric was its counterexample. Budget truncation is now counted and rendered separately, as ours. Nothing had to be re-run to fix it: `repair.truncated` and `repair.steps` were already in the trace, so every archived session reclassifies on replay. The number is one this repo had not yet published, and no live measurement moves, which is why it was worth fixing *before* the real benchmark run generates it.
 
 The meta-lesson matches Switchboard's: unit tests confirm the code does what it says; scenario evals and adversarial probes are what catch the code saying the wrong thing. Finding 8 is the sharpest version — it surfaced only because two independently-built components (the benchmark's task set and the convening rule) were asserted against each other, which no test of either alone would have done. All of it runs in CI.
 
@@ -570,7 +574,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           490 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
+tests/           500 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility

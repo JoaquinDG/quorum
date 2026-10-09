@@ -261,6 +261,19 @@ def render_markdown(session: ReplayedSession, *, top_objections: int = 3) -> str
                 f"{rate.attempts} ({rate.rate:.0%}) — {rate.repaired} repaired, "
                 f"{rate.discarded} discarded |"
             )
+    truncated = {m: r for m, r in session.malformation.items() if r.truncated}
+    if truncated:
+        # Its own row, and worded as ours. Printed next to the malformation
+        # row rather than folded into it so that a reader deciding whether to
+        # replace a seat can see which of the two numbers that decision would
+        # actually act on. This one says raise the budget.
+        for model, rate in sorted(truncated.items()):
+            out.append(
+                f"| Cut off by our completion budget ({model}) | "
+                f"{rate.truncated} of {rate.attempts} "
+                f"({rate.truncation_rate:.0%}): closed and kept; "
+                f"a budget we set, not a format the model missed |"
+            )
     cache = session.cache
     if cache.gross_tokens_in:
         # Printed for any session that read input, including one where nothing

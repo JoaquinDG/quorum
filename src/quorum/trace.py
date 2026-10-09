@@ -264,16 +264,34 @@ class MalformationRate:
     cheapest seat in the lineup also the one that cannot hold the format?" —
     and that has been true often enough to be worth watching rather than
     remembering.
+
+    `truncated` is counted apart from `malformed` and deliberately excluded
+    from it. A response the completion budget cut off mid-object is a fact
+    about the budget we set, not about the model's ability to hold a format,
+    and charging it to the vendor makes the one metric that exists to measure
+    the format answer a question about our configuration instead. The adapter
+    already learned this: `ProviderTruncated` exists because a hard truncation
+    returning empty content was being recorded as a malformed sheet. A soft
+    truncation, meaning partial JSON that repair can close, reached this
+    derivation and was charged to the model anyway.
     """
 
     attempts: int = 0
     malformed: int = 0
     repaired: int = 0
     discarded: int = 0
+    truncated: int = 0
 
     @property
     def rate(self) -> float:
         return self.malformed / self.attempts if self.attempts else 0.0
+
+    @property
+    def truncation_rate(self) -> float:
+        """Share of attempts the completion budget cut off. Our number, not
+        the model's: a rising one means raise the budget, not change the
+        seat."""
+        return self.truncated / self.attempts if self.attempts else 0.0
 
     @property
     def recovered_share(self) -> float:
@@ -286,9 +304,20 @@ class MalformationRate:
             "malformed": self.malformed,
             "repaired": self.repaired,
             "discarded": self.discarded,
+            "truncated": self.truncated,
             "rate": round(self.rate, 4),
+            "truncation_rate": round(self.truncation_rate, 4),
             "recovered_share": round(self.recovered_share, 4),
         }
+
+
+# Repair steps that mean our completion budget ran out mid-object. Everything
+# else in the step vocabulary is something the model did to its own output (a
+# markdown fence, a trailing comma, an unescaped quote) and stays chargeable.
+BUDGET_REPAIR_STEPS = frozenset({
+    "closed_truncated_json",
+    "dropped_incomplete_trailing_value",
+})
 
 
 def malformation_by_model(events: Iterable[TraceEvent]) -> dict[str, MalformationRate]:
@@ -296,13 +325,25 @@ def malformation_by_model(events: Iterable[TraceEvent]) -> dict[str, Malformatio
 
     Derived rather than tallied during the run, so it can be recomputed for
     any recorded session — including the ones captured before this existed,
-    which is what makes a before/after comparison possible at all.
+    which is what makes a before/after comparison possible at all. The split
+    between budget truncation and model malformation is derived the same way,
+    from `repair.truncated` and `repair.steps`, both of which the trace has
+    carried since repair shipped. No recorded session had to be re-run to
+    reclassify, and replaying an old file now reports the corrected number.
+
+    One gap, stated rather than papered over: a *discarded* attempt carries
+    its raw text but no repair record, because nothing successfully repaired
+    it. Whether that attempt was cut off by the budget or malformed by the
+    model cannot be told from the trace without re-running the repair
+    heuristic inside a metric, so discards are left in `malformed`. Closing
+    that needs the budget work in roadmap H2.
     """
     events = list(events)
     attempts: dict[str, int] = {}
     malformed: dict[str, int] = {}
     repaired: dict[str, int] = {}
     discarded: dict[str, int] = {}
+    truncated: dict[str, int] = {}
 
     def model_of(event: TraceEvent) -> str:
         payload = event.payload
@@ -325,16 +366,27 @@ def malformation_by_model(events: Iterable[TraceEvent]) -> dict[str, Malformatio
             # discards would make repair look like the malformation going
             # away, when what it did was stop the malformation costing
             # anything. Those are different claims.
-            malformed[model] = malformed.get(model, 0) + 1
-            repaired[model] = repaired.get(model, 0) + 1
+            repair = event.payload["repair"]
+            steps = set(repair.get("steps") or ())
+            was_truncated = bool(repair.get("truncated"))
+            if was_truncated:
+                truncated[model] = truncated.get(model, 0) + 1
+            # A repair that only closed an object our budget cut off is not
+            # the model's to answer for. One that also unescaped a quote or
+            # stripped a fence is, and a response can be both: the counters
+            # are not exclusive, because neither fact cancels the other.
+            if not was_truncated or (steps - BUDGET_REPAIR_STEPS):
+                malformed[model] = malformed.get(model, 0) + 1
+                repaired[model] = repaired.get(model, 0) + 1
 
-    models = set(attempts) | set(malformed)
+    models = set(attempts) | set(malformed) | set(truncated)
     return {
         m: MalformationRate(
             attempts=attempts.get(m, 0),
             malformed=malformed.get(m, 0),
             repaired=repaired.get(m, 0),
             discarded=discarded.get(m, 0),
+            truncated=truncated.get(m, 0),
         )
         for m in sorted(models)
     }
