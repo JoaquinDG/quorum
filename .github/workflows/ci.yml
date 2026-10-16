@@ -7,7 +7,15 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned rather than `ubuntu-latest`, for the same reason the actions
+    # below are pinned to SHAs: a floating label is a pointer somebody else
+    # can repoint, and this one has a date on it. The runner has been
+    # annotating every job to say `ubuntu-latest` begins migrating to Ubuntu
+    # 26 on 2026-10-19. 24.04 is what the label resolved to here, so this pin
+    # changes nothing today and turns that migration into a deliberate bump
+    # with its own green run across the 3.10 to 3.13 matrix, rather than an
+    # image change that arrives under whatever happens to be open at the time.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
