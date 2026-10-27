@@ -218,10 +218,12 @@ Two honest caveats. The 9.3% has little headroom, and the rate is a property of 
 Every session computes its own baseline and carries it in the trace, so the report can print it without re-deriving prices the record doesn't contain:
 
 ```
-this session:         $0.0379
+this session:         $0.0408
 one model, once:      $0.0057  (delphi-frontier)
-multiple:             6.7x  (within the 8x guardrail)
+multiple:             7.2x  (within the 8x guardrail)
 ```
+
+That multiple was 6.7× until the shield landed. Fencing peer text costs input tokens in rounds 2 and 3, on every sheet every recipient reads, and the quickstart bill went from $0.0382 to $0.0408 the moment it merged. The block sat at the 0.1.0 figures for two months after that, drifted in the reassuring direction: a cheaper council with more headroom than the code actually delivers.
 
 The baseline is deliberately conservative: **the same question, answered once, by the priciest seat in the room**, measured from the session's own round 1 rather than guessed. It isn't "the cheapest thing that would have worked" (unknowable) and isn't "three sheets from one model" (a different protocol). Price is a rough proxy for capability, so `SessionConfig.baseline_model` overrides the choice, and the chosen model is printed alongside the number — a reader should be able to disagree with the comparison rather than having to guess it.
 
