@@ -10,7 +10,7 @@
 Zero dependencies. Runs fully offline out of the box. `git clone`, run the tests, watch a debate in under a minute.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 490 tests
+PYTHONPATH=src python3 -m unittest discover -s tests   # 493 tests
 PYTHONPATH=src python3 evals/convening_eval.py         # when is a council worth it?
 PYTHONPATH=src python3 evals/probe_eval.py             # is the blinding actually blind?
 PYTHONPATH=src python3 evals/benchmark_eval.py         # quorum vs one model vs self-critique
@@ -218,10 +218,12 @@ Two honest caveats. The 9.3% has little headroom, and the rate is a property of 
 Every session computes its own baseline and carries it in the trace, so the report can print it without re-deriving prices the record doesn't contain:
 
 ```
-this session:         $0.0379
+this session:         $0.0408
 one model, once:      $0.0057  (delphi-frontier)
-multiple:             6.7x  (within the 8x guardrail)
+multiple:             7.2x  (within the 8x guardrail)
 ```
+
+That multiple was 6.7× until the shield landed. Fencing peer text costs input tokens in rounds 2 and 3, on every sheet every recipient reads, and the quickstart bill went from $0.0382 to $0.0408 the moment it merged. The block sat at the 0.1.0 figures for two months after that, drifted in the reassuring direction: a cheaper council with more headroom than the code actually delivers. It is asserted against a live session by `tests/test_readme_claims.py` now, verdict included, so a block claiming to be within the guardrail cannot outlive the run that was.
 
 The baseline is deliberately conservative: **the same question, answered once, by the priciest seat in the room**, measured from the session's own round 1 rather than guessed. It isn't "the cheapest thing that would have worked" (unknowable) and isn't "three sheets from one model" (a different protocol). Price is a rough proxy for capability, so `SessionConfig.baseline_model` overrides the choice, and the chosen model is printed alongside the number — a reader should be able to disagree with the comparison rather than having to guess it.
 
@@ -570,7 +572,7 @@ src/quorum/
   probe.py       the deanonymization probe: measuring the blinding, not assuming it
   benchmark.py   quorum vs one model vs one model self-critiquing, rubric-scored
   providers/     one-method Provider protocol; offline mocks that actually play the protocol
-tests/           490 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
+tests/           493 tests; protocol invariants, shield corpus, review regressions, real-session fixtures
 evals/           convening rate, the blinding probe, the judgment benchmark + its 20 tasks
 examples/        offline quickstart: convene → session → report → replay
 replay.py        front door for the replay utility
